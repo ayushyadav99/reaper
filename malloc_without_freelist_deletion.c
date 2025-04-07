@@ -6,7 +6,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <stdlib.h>
+#include <stdio.h>
 
+// block header size is 48 bytes currently
 struct memory_block{
     int free;
     size_t size;
@@ -17,12 +20,13 @@ struct memory_block{
 };
 
 #define BLOCK_SIZE sizeof(struct memory_block)
-#define MIN_ALLOC_SZ BLOCK_SIZE + 32
+// for 64 bit systems the minimum becomes 8 bytes
+#define MIN_ALLOC_SZ BLOCK_SIZE + 8
 
 
 // TODO: Determine exact number to use of alignment
 /* The macro align4 is used to set the requested size to multiple of four greater than requested size */
-#define align4(x) (((((x)-1) >> 2) << 2) + 4)
+#define align8(x) (((((x)-1) >> 3) << 3) + 8)
 
 void* list_head=NULL;
 
@@ -32,11 +36,14 @@ struct memory_block* find_free_block(struct memory_block** last_block, size_t si
         *last_block = curr;
         curr=curr->next_block;
     }
-    return last_block;
+    return *last_block;
 }
-// struct memory_block* list_head=NULL;
 
+// request 2 pages from os not sbrk
 struct memory_block* request_from_os(struct memory_block* last_block, size_t size){
+    printf("requesting from os\n");
+    size_t page_size = getpagesize();
+    printf("page size: %lu\n", page_size);
     struct memory_block* new_block;
     new_block=sbrk(0);
     void* requested_block=sbrk(size+BLOCK_SIZE);
@@ -62,7 +69,7 @@ struct memory_block* request_from_os(struct memory_block* last_block, size_t siz
 
 void split_block(struct memory_block* block,size_t size){
     struct memory_block* n_block;
-    n_block=block->data+size; //start address of new block
+    n_block=(struct memory_block*)(block->data+size); //start address of new block
     n_block->size=block->size-size-BLOCK_SIZE;
     n_block->next_block=block->next_block;
     n_block->prev_block=block;
@@ -79,7 +86,7 @@ void* malloc(size_t size){
     struct memory_block* block;
     struct memory_block* last_block;
     size_t s;
-    s=align4(size);
+    s=align8(size);
     if(list_head){
         last_block=list_head;
         block=find_free_block(&last_block,s);
@@ -165,7 +172,7 @@ void* realloc(void* ptr, size_t size){
     }
 
     if(addr_valid(ptr)==1){
-        size_t s=align4(size);
+        size_t s=align8(size);
         struct memory_block* memory_block_ptr=get_memory_block_ptr(ptr);
         if(memory_block_ptr->size>=s){
             if(memory_block_ptr->size>=MIN_ALLOC_SZ){
@@ -201,4 +208,39 @@ void *calloc(size_t nelem, size_t elsize) {
     void *ptr = malloc(size);
     memset(ptr, 0, size);
     return ptr;
+}
+
+// int main(){
+//     printf("%lu\n",BLOCK_SIZE);
+//     return 0;
+// }
+
+//TEST CODE BELOW
+struct Student {
+    int id;
+    float gpa;
+  };
+  
+  int main(int argc, char** argv) {
+    if (argc != 2) {
+      printf("specify number of mallocs\n");
+      return 1;
+    }
+    const int num_objects = atoi(argv[1]);
+  
+    for (int i = 0; i < num_objects; i++) {
+    struct Student* student = (struct Student*)malloc(sizeof(struct Student));
+  
+    if (student == NULL) {
+      printf("Memory allocation failed!\n");
+      return 1;
+    }
+      student->id = i + 1;
+      student->gpa = 3.0;  
+    printf("student: ID = %d, GPA = %.2f\n", student->id, student->gpa);
+    free(student);
+    }
+  
+  
+    return 0;
   }
