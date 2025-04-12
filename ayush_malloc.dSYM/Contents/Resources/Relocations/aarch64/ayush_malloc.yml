@@ -1,0 +1,9 @@
+---
+triple:          'arm64-apple-darwin'
+binary-path:     ayush_malloc
+relocations:
+  - { offsetInCU: 0x26, offset: 0x26, size: 0x8, addend: 0x0, symName: _my_malloc, symObjAddr: 0x0, symBinAddr: 0x100003D00, symSize: 0x9C }
+  - { offsetInCU: 0xAD, offset: 0xAD, size: 0x8, addend: 0x0, symName: _my_malloc, symObjAddr: 0x0, symBinAddr: 0x100003D00, symSize: 0x9C }
+  - { offsetInCU: 0x10D, offset: 0x10D, size: 0x8, addend: 0x0, symName: _my_free, symObjAddr: 0x9C, symBinAddr: 0x100003D9C, symSize: 0x50 }
+  - { offsetInCU: 0x14D, offset: 0x14D, size: 0x8, addend: 0x0, symName: _main, symObjAddr: 0xEC, symBinAddr: 0x100003DEC, symSize: 0x12C }
+...
