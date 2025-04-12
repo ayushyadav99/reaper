@@ -13,8 +13,6 @@ struct block_metadata {
 };
 
 void* my_malloc(size_t size) {
-  printf("my malloc called\n");
-
   size_t total_size = size + sizeof(struct block_metadata);
 
   size_t page_size = getpagesize();
