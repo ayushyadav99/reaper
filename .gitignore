@@ -1,2 +1,4 @@
-*.vscode
+cmake*
+.idea/
+.DS_store
 *.dSYM

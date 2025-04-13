@@ -1,18 +1,16 @@
 #include <stdio.h>
-#include <stdint.h>
-#include<stdlib.h>
+#include <assert.h>
+#include "malloc_common.h"
+
 
 struct Student {
   int id;
   float gpa;
 };
 
-int main(int argc, char** argv) {
-  if (argc != 2) {
-    printf("specify number of mallocs\n");
-    return 1;
-  }
-  const int num_objects = atoi(argv[1]);
+int main() {
+  const int num_objects = 1000000; 
+
 
   for (int i = 0; i < num_objects; i++) {
   struct Student* student = (struct Student*)malloc(sizeof(struct Student));
@@ -23,10 +21,13 @@ int main(int argc, char** argv) {
   }
     student->id = i + 1;
     student->gpa = 3.0;  
-   printf("student: ID = %d, GPA = %.2f\n", student->id, student->gpa);
+    if(student->id % 100000 == 0) {
+      printf("student: ID = %d, GPA = %.2f\n", student->id, student->gpa);
+    }
   free(student);
   }
 
 
   return 0;
 }
+

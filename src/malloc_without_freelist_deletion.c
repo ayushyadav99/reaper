@@ -4,12 +4,12 @@
 #include <assert.h>
 #include <string.h>
 #include <sys/types.h>
-#include <sys/mman.h>
 #include <unistd.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include<math.h>
+#include<sys/mman.h>
+
 
 // block header size is 48 bytes currently
 struct memory_block{
@@ -20,13 +20,6 @@ struct memory_block{
     void* ptr;
     char data[1];
 };
-
-// struct for freelist with prev, next (freelist) and a pointer to memory_block
-struct free_list_node{
-    struct free_list_node* prev_node;
-    struct free_list_node* next_node;
-    struct memory_block* memory_block;
-}
 
 #define BLOCK_SIZE sizeof(struct memory_block)
 // for 64 bit systems the minimum becomes 8 bytes
@@ -39,10 +32,36 @@ struct free_list_node{
 
 void* list_head=NULL;
 
-struct memory_block* split_block(struct memory_block* block,size_t size);
-struct memory_block* find_free_block(struct memory_block** last_block, size_t size);
-struct memory_block* request_from_os(struct memory_block* last_block, size_t size);
-void* malloc(size_t size);
+struct memory_block* syscall_for_mem(size_t size) {
+    struct memory_block* new_block = NULL;
+#if defined(__APPLE__) || defined(__MACH__)
+    new_block = mmap(NULL, 
+                 size,
+                 PROT_READ | PROT_WRITE,
+                 MAP_PRIVATE | MAP_ANON,
+                 -1,
+                 0);
+    if (new_block == MAP_FAILED) {
+      return NULL;
+    }
+#elif defined(__linux__)
+    new_block=sbrk(0);
+    void* requested_block=sbrk(size);
+    assert((void*)new_block == requested_block); // not thread safe
+    if(requested_block == (void*)-1){
+        return NULL;
+    }
+#endif
+    return new_block;
+}
+
+void os_memory_return(struct memory_block* ptr, size_t size){
+#if defined(__APPLE__) || defined(__MACH__)
+  munmap(ptr, size);
+#elif defined(__linux__)
+  brk(ptr);
+#endif
+}
 
 
 
@@ -60,30 +79,15 @@ struct memory_block* request_from_os(struct memory_block* last_block, size_t siz
     printf("requesting from os\n");
     size_t page_size = getpagesize();
     printf("page size: %lu\n", page_size);
-    struct memory_block* new_block;
-    size_t tot_size=size+BLOCK_SIZE;
-    size_t n_pages;
-    if(tot_size%page_size!=0){
-        n_pages=fmax(2,tot_size/page_size+1);
-    }
-    else{
-        n_pages=fmax(2,tot_size/page_size);
-    }
 
-    void* requested_block = mmap(NULL, n_pages*page_size,
-        PROT_READ | PROT_WRITE,
-        MAP_PRIVATE | MAP_ANONYMOUS,
-        -1, 0);
-    if (requested_block == MAP_FAILED) {
-        perror("mmap failed");
-        return NULL;
-    }
-    new_block = (struct memory_block*)requested_block;
+    struct memory_block* new_block = syscall_for_mem(size+BLOCK_SIZE);
+    if (new_block == NULL) return NULL;
+
     if(last_block!=NULL){
         new_block->prev_block=last_block->prev_block;
         last_block->prev_block=new_block;
     }
-    new_block->size=n_pages*page_size-BLOCK_SIZE;
+    new_block->size=size;
     new_block->free=false;
     new_block->next_block=NULL;
     new_block->prev_block=NULL;
@@ -92,31 +96,22 @@ struct memory_block* request_from_os(struct memory_block* last_block, size_t siz
         last_block->next_block=new_block;
         new_block->prev_block=last_block;
     }
-    struct memory_block* res=new_block;
-    if(new_block->size-tot_size>=MIN_ALLOC_SZ){
-        //split_block
-        res=split_block(new_block,tot_size);
-    }
-    return res;
+    return new_block;
 }
 
-struct memory_block* split_block(struct memory_block* block,size_t size){
+void split_block(struct memory_block* block,size_t size){
     struct memory_block* n_block;
-    //n_block=(struct memory_block*)(block->data+size); //start address of new block
-    n_block=(struct memory_block*)(block->data+block->size-size-BLOCK_SIZE);
-    //n_block->size=block->size-size-BLOCK_SIZE;
-    n_block->size=size;
+    n_block=(struct memory_block*)(block->data+size); //start address of new block
+    n_block->size=block->size-size-BLOCK_SIZE;
     n_block->next_block=block->next_block;
     n_block->prev_block=block;
-    n_block->free=0;
-    block->free=1;
+    n_block->free=1;
     n_block->ptr=n_block->data;
     block->next_block=n_block;
     block->size=size;
     if(n_block->next_block!=NULL){
         n_block->next_block->prev_block=n_block;
     }
-    return n_block;
 }
 
 void* malloc(size_t size){
@@ -130,7 +125,7 @@ void* malloc(size_t size){
         if(block){
             if(block->size-s>=MIN_ALLOC_SZ){
                 //split_block
-                block=split_block(block,s);
+                split_block(block,s);
             }
             block->free=0;
         }
@@ -148,23 +143,7 @@ void* malloc(size_t size){
         }
         list_head=block;
     }
-    // delete block from free list
-    struct memory_block* prev=block->prev_block;
-    struct memory_block* next=block->next_block;
-    if(prev==NULL && next==NULL){
-        list_head=NULL;
-    }
-    else if(prev!=NULL && next==NULL){
-        prev->next_block=NULL;
-    }
-    else if(prev==NULL && next!=NULL){
-        list_head=next;
-        next->prev_block=NULL;
-    }
-    else{
-        prev->next_block=next;
-        next->prev_block=prev;
-    }
+    
     return block->data;
 }
 
@@ -185,7 +164,7 @@ struct memory_block* coalesce_blocks(struct memory_block* block){
 
 int addr_valid(void* p){
     if(list_head){
-        if(p>list_head && p<sbrk(0)){
+        if(p>list_head){
             if(p==get_memory_block_ptr(p)->ptr){
                 return 1;
             }
@@ -198,43 +177,6 @@ void free(void* ptr){
     if(addr_valid(ptr)==1){
         struct memory_block* memory_block_ptr=get_memory_block_ptr(ptr);
         memory_block_ptr->free=1;
-        // if  block is larger than 2 pages then directly release to os
-        size_t page_size = getpagesize();
-        if(memory_block_ptr->size+BLOCK_SIZE>=2*page_size){
-            munmap(memory_block_ptr,memory_block_ptr->size+BLOCK_SIZE);
-            return;
-        }
-        struct memory_block* prev=memory_block_ptr->prev_block;
-        struct memory_block* curr=list_head;
-        if(prev==NULL){
-            if(curr){
-                memory_block_ptr->next_block=curr;
-                curr->prev_block=memory_block_ptr;
-                list_head=memory_block_ptr;
-            }
-            else{
-                memory_block_ptr->prev_block=NULL;
-                memory_block_ptr->next_block=NULL;
-                list_head=memory_block_ptr;
-            }
-        }
-        else{
-            while(curr!=prev && curr->next_block){
-                curr=curr->next_block;
-            }
-            //insert after curr
-            if(curr->next_block){
-                memory_block_ptr->prev_block=curr;
-                memory_block_ptr->next_block=curr->next_block;
-                curr->next_block->prev_block=memory_block_ptr;
-                curr->next_block=memory_block_ptr;
-            }
-            else{
-                curr->next_block=memory_block_ptr;
-                memory_block_ptr->prev_block=curr;
-            }
-        }
-        
         if(memory_block_ptr->prev_block!=NULL && memory_block_ptr->prev_block->free==1){
             //merge previous block since its free
             memory_block_ptr=coalesce_blocks(memory_block_ptr->prev_block);
@@ -250,14 +192,12 @@ void free(void* ptr){
             else{
                 list_head=NULL;
             }
-            brk(memory_block_ptr);
+            os_memory_return(memory_block_ptr, sizeof(struct memory_block)+BLOCK_SIZE);
         }
     }
     return;
 }
 
-
-// realloc needs tweaks
 void* realloc(void* ptr, size_t size){
     if(ptr==NULL){
         return malloc(size);
@@ -302,42 +242,4 @@ void *calloc(size_t nelem, size_t elsize) {
     return ptr;
 }
 
-// int main(){
-//     printf("%lu\n",BLOCK_SIZE);
-//     return 0;
-// }
 
-//TEST CODE BELOW
-struct Student {
-    int id;
-    float gpa;
-  };
-  
-  int main(int argc, char** argv) {
-    if (argc != 2) {
-      printf("specify number of mallocs\n");
-      return 1;
-    }
-    const int num_objects = atoi(argv[1]);
-  
-    for (int i = 0; i < num_objects; i++) {
-    struct Student* student = (struct Student*)malloc(sizeof(struct Student));
-  
-    if (student == NULL) {
-      printf("Memory allocation failed!\n");
-      return 1;
-    }
-      student->id = i + 1;
-      student->gpa = 3.0;  
-    printf("student: ID = %d, GPA = %.2f\n", student->id, student->gpa);
-    free(student);
-    }
-  
-  
-    return 0;
-  }
-
-  // ./a.out 1000000  0.45s user 0.64s system 26% cpu 4.166 total mmap
-  // ./a.out 1000000  0.43s user 0.64s system 25% cpu 4.111 total sbrk
-  // ./a.out 1000000  0.45s user 0.65s system 26% cpu 4.132 total baseline
-  // ./a.out 1000000  1.07s user 3.19s system 69% cpu 6.115 total ayush's
