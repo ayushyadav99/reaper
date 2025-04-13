@@ -126,7 +126,7 @@ void* my_malloc(size_t size) {
 
   size_t total_size = size + sizeof(struct block_metadata);
 
-  size_t page_size = getpagesize();
+  //size_t page_size = getpagesize();
   //printf("page size: %lu\n", page_size);
 
   void* p = mmap(NULL, 
@@ -175,7 +175,9 @@ int main(int argc, char** argv) {
   }
     student->id = i + 1;
     student->gpa = 3.0;  
-  printf("student: ID = %d, GPA = %.2f\n", student->id, student->gpa);
+    if(student->id % 100000 == 0) {
+      printf("student: ID = %d, GPA = %.2f\n", student->id, student->gpa);
+    }
   free(student);
   }
 

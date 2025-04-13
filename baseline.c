@@ -23,7 +23,9 @@ int main(int argc, char** argv) {
   }
     student->id = i + 1;
     student->gpa = 3.0;  
-   printf("student: ID = %d, GPA = %.2f\n", student->id, student->gpa);
+    if (student->id % 100000 == 0) {
+      printf("student: ID = %d, GPA = %.2f\n", student->id, student->gpa);
+    }
   free(student);
   }
 

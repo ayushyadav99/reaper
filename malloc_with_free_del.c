@@ -37,6 +37,36 @@ struct memory_block* find_free_block(struct memory_block** last_block, size_t si
 struct memory_block* request_from_os(struct memory_block* last_block, size_t size);
 void* malloc(size_t size);
 
+struct memory_block* syscall_for_mem(size_t size) {
+    struct memory_block* new_block = NULL;
+#if defined(__APPLE__) || defined(__MACH__)
+    new_block = mmap(NULL, 
+                 size,
+                 PROT_READ | PROT_WRITE,
+                 MAP_PRIVATE | MAP_ANON,
+                 -1,
+                 0);
+    if (new_block == MAP_FAILED) {
+      return NULL;
+    }
+#elif defined(__linux__)
+    new_block=sbrk(0);
+    void* requested_block=sbrk(size);
+    assert((void*)new_block == requested_block); // not thread safe
+    if(requested_block == (void*)-1){
+        return NULL;
+    }
+#endif
+    return new_block;
+}
+
+void os_memory_return(struct memory_block* ptr, size_t size){
+#if defined(__APPLE__) || defined(__MACH__)
+  munmap(ptr, size);
+#elif defined(__linux__)
+  brk(ptr);
+#endif
+}
 
 
 struct memory_block* find_free_block(struct memory_block** last_block, size_t size){
@@ -62,15 +92,7 @@ struct memory_block* request_from_os(struct memory_block* last_block, size_t siz
     else{
         n_pages=fmax(2,tot_size/page_size);
     }
-
-    void* requested_block = mmap(NULL, n_pages*page_size,
-        PROT_READ | PROT_WRITE,
-        MAP_PRIVATE | MAP_ANONYMOUS,
-        -1, 0);
-    if (requested_block == MAP_FAILED) {
-        perror("mmap failed");
-        return NULL;
-    }
+    void* requested_block = syscall_for_mem(n_pages*page_size);
     new_block = (struct memory_block*)requested_block;
     if(last_block!=NULL){
         new_block->prev_block=last_block->prev_block;
@@ -178,7 +200,7 @@ struct memory_block* coalesce_blocks(struct memory_block* block){
 
 int addr_valid(void* p){
     if(list_head){
-        if(p>list_head && p<sbrk(0)){
+        if(p>list_head){
             if(p==get_memory_block_ptr(p)->ptr){
                 return 1;
             }
@@ -194,7 +216,7 @@ void free(void* ptr){
         // if  block is larger than 2 pages then directly release to os
         size_t page_size = getpagesize();
         if(memory_block_ptr->size+BLOCK_SIZE>=2*page_size){
-            munmap(memory_block_ptr,memory_block_ptr->size+BLOCK_SIZE);
+            os_memory_return(memory_block_ptr, memory_block_ptr->size+BLOCK_SIZE);
             return;
         }
         struct memory_block* prev=memory_block_ptr->prev_block;
@@ -243,7 +265,7 @@ void free(void* ptr){
             else{
                 list_head=NULL;
             }
-            brk(memory_block_ptr);
+            os_memory_return(memory_block_ptr, sizeof(struct memory_block)+BLOCK_SIZE);
         }
     }
     return;
@@ -322,7 +344,10 @@ struct Student {
     }
       student->id = i + 1;
       student->gpa = 3.0;  
-    printf("student: ID = %d, GPA = %.2f\n", student->id, student->gpa);
+
+    if(student->id % 100000 == 0) {
+      printf("student: ID = %d, GPA = %.2f\n", student->id, student->gpa);
+    }
     free(student);
     }
   

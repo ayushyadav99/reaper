@@ -1,5 +1,6 @@
-CC = gcc
-CFLAGS = -Wall -g
+CC = clang 
+CFLAGS = -Xpreprocessor -fopenmp -I/usr/local/opt/libomp/include \
+      -L/usr/local/opt/libomp/lib -lomp -lm -Wall
 
 # Targets for each test
 all: test1 test2 test3 test4
