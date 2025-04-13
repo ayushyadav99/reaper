@@ -1,33 +1,62 @@
-CC = clang 
+CC = clang
 CFLAGS = -Xpreprocessor -fopenmp -I/usr/local/opt/libomp/include \
-      -L/usr/local/opt/libomp/lib -lomp -lm -Wall
+      -L/usr/local/opt/libomp/lib -lomp -lm -Wall -Iinclude
 
-# Targets for each test
-all: test1 test2 test3 test4
+# Find all source files
+IMPL_SOURCES = $(wildcard src/malloc_*.c)
+TEST_SOURCES = $(wildcard test/test_*.c)
 
-test1: baseline.c
-	$(CC) $(CFLAGS) -o baseline baseline.c
+# Get base names for implementations and tests
+IMPL_NAMES = $(notdir $(basename $(IMPL_SOURCES)))
+TEST_NAMES = $(patsubst test_%,%,$(notdir $(basename $(TEST_SOURCES))))
 
-test2: ayush_malloc.c
-	$(CC) $(CFLAGS) -o ayush_malloc ayush_malloc.c
+# Generate all targets (each test with each implementation)
+ALL_TARGETS = $(foreach impl,$(IMPL_NAMES),\
+                $(foreach test,$(TEST_NAMES),\
+                    $(test)_$(impl)))
 
-test3: malloc_without_freelist_deletion.c
-	$(CC) $(CFLAGS) -o malloc_without_freelist_deletion malloc_without_freelist_deletion.c
+.PHONY: all clean test list
 
-test4: malloc_with_free_del.c
-	$(CC) $(CFLAGS) -o malloc_with_free_del malloc_with_free_del.c
+all: $(ALL_TARGETS)
 
-# Run all tests
-test: all
-	@echo "Running baseline:"
-	time ./baseline 1000000
-	@echo "Running ayush_malloc:"
-	time ./ayush_malloc 1000000
-	@echo "Running malloc_without_freelist_deletion:"
-	time ./malloc_without_freelist_deletion 1000000
-	@echo "Running test4:"
-	time ./malloc_with_free_del 1000000
+# Show the test sources and targets for debugging
+$(info IMPL_SOURCES: $(IMPL_SOURCES))
+$(info TEST_SOURCES: $(TEST_SOURCES))
+$(info ALL_TARGETS: $(ALL_TARGETS))
 
-# Cleanup
+# Use explicit rules for each target
+define make-test-target
+$(1)_$(2): test/test_$(1).c src/$(2).o
+	$(CC) $(CFLAGS) $$^ -o $$@
+endef
+
+# Generate rules for all combinations
+$(foreach impl,$(IMPL_NAMES),\
+  $(foreach test,$(TEST_NAMES),\
+    $(eval $(call make-test-target,$(test),$(impl)))))
+
+# Rule to build object files
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Run all tests with time measurement
+test: $(ALL_TARGETS)
+	@for test in $(ALL_TARGETS); do \
+		echo "\nRunning $$test..."; \
+		time ./$$test; \
+		echo "------------------------"; \
+	done
+
+# Show what will be built
+list:
+	@echo "Implementation files found: $(IMPL_SOURCES)"
+	@echo "Implementation names: $(IMPL_NAMES)"
+	@echo "Test files found: $(TEST_SOURCES)"
+	@echo "Test names: $(TEST_NAMES)"
+	@echo "Targets that will be built:"
+	@for target in $(ALL_TARGETS); do \
+		echo "  $$target"; \
+	done
+
 clean:
-	rm -f baseline ayush_malloc malloc_without_freelist_deletion malloc_with_free_del
+	rm -f src/*.o $(ALL_TARGETS)

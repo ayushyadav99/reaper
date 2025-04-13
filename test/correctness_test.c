@@ -1,6 +1,6 @@
 #include <stdio.h>
-#include <stdint.h>
-#include<stdlib.h>
+#include <assert.h>
+#include "malloc_common.h"
 
 struct Student {
   int id;
@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
   }
     student->id = i + 1;
     student->gpa = 3.0;  
-    if (student->id % 100000 == 0) {
+    if(student->id % 100000 == 0) {
       printf("student: ID = %d, GPA = %.2f\n", student->id, student->gpa);
     }
   free(student);
@@ -32,3 +32,4 @@ int main(int argc, char** argv) {
 
   return 0;
 }
+
