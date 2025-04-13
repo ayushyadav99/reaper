@@ -44,7 +44,7 @@ test: $(ALL_TARGETS)
 	@for test in $(ALL_TARGETS); do \
 		echo "\nRunning $$test..."; \
 		time ./$$test; \
-		echo "------------------------"; \
+		echo "-----------------------------------------------------------------"; \
 	done
 
 # Show what will be built
