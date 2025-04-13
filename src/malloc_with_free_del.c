@@ -22,11 +22,6 @@ struct memory_block{
 };
 
 // struct for freelist with prev, next (freelist) and a pointer to memory_block
-struct free_list_node{
-    struct free_list_node* prev_node;
-    struct free_list_node* next_node;
-    struct memory_block* memory_block;
-}
 
 #define BLOCK_SIZE sizeof(struct memory_block)
 // for 64 bit systems the minimum becomes 8 bytes

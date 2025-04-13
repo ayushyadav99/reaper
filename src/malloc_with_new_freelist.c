@@ -69,7 +69,7 @@ struct free_list_node* find_free_node(size_t size){
 }
 
 struct free_list_node* add_node_to_free_list_head(struct free_list_node* f_node){
-    struct free_list_node* free_head=free_list_head;
+    //struct free_list_node* free_head=free_list_head;
     f_node->prev_node=NULL;
     f_node->next_node=free_list_head;
     if(f_node->next_node!=NULL){
@@ -339,36 +339,36 @@ void my_free(void* ptr){
 
 
 //TEST CODE BELOW
-struct Student {
-    int id;
-    float gpa;
-  };
+// struct Student {
+//     int id;
+//     float gpa;
+//   };
   
-  int main(int argc, char** argv) {
-    if (argc != 2) {
-      printf("specify number of mallocs\n");
-      return 1;
-    }
-    const int num_objects = atoi(argv[1]);
+//   int main(int argc, char** argv) {
+//     if (argc != 2) {
+//       printf("specify number of mallocs\n");
+//       return 1;
+//     }
+//     const int num_objects = atoi(argv[1]);
   
-    for (int i = 0; i < num_objects; i++) {
-    struct Student* student = (struct Student*)my_malloc(sizeof(struct Student));
+//     for (int i = 0; i < num_objects; i++) {
+//     struct Student* student = (struct Student*)my_malloc(sizeof(struct Student));
   
-    if (student == NULL) {
-      printf("Memory allocation failed!\n");
-      return 1;
-    }
-      student->id = i + 1;
-      student->gpa = 3.0;  
-    printf("student: ID = %d, GPA = %.2f\n", student->id, student->gpa);
-    my_free(student);
-    }
+//     if (student == NULL) {
+//       printf("Memory allocation failed!\n");
+//       return 1;
+//     }
+//       student->id = i + 1;
+//       student->gpa = 3.0;  
+//     printf("student: ID = %d, GPA = %.2f\n", student->id, student->gpa);
+//     my_free(student);
+//     }
   
   
-    return 0;
-  }
+//     return 0;
+//   }
 
-  // ./a.out 1000000  0.45s user 0.64s system 26% cpu 4.166 total mmap
-  // ./a.out 1000000  0.43s user 0.64s system 25% cpu 4.111 total sbrk
-  // ./a.out 1000000  0.45s user 0.65s system 26% cpu 4.132 total baseline
-  // ./a.out 1000000  1.07s user 3.19s system 69% cpu 6.115 total ayush's
+//   // ./a.out 1000000  0.45s user 0.64s system 26% cpu 4.166 total mmap
+//   // ./a.out 1000000  0.43s user 0.64s system 25% cpu 4.111 total sbrk
+//   // ./a.out 1000000  0.45s user 0.65s system 26% cpu 4.132 total baseline
+//   // ./a.out 1000000  1.07s user 3.19s system 69% cpu 6.115 total ayush's
