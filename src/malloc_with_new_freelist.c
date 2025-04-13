@@ -38,6 +38,7 @@ struct free_list_node{
 #define align8(x) (((((x)-1) >> 3) << 3) + 8)
 
 void* list_head=NULL;
+void* list_tail=NULL;
 void* free_list_head=NULL;
 
 struct memory_block* split_block(struct memory_block* block,size_t size);
@@ -50,27 +51,42 @@ void* my_malloc(size_t size);
 
 struct free_list_node* find_free_node(size_t size){
     struct free_list_node* curr=free_list_head;
+    //printf("find free\n");
     struct free_list_node* ans=NULL;
-    while(curr!=NULL && !(curr->mem_block->free==1 && curr->mem_block->size>=size)){
+    while(curr!=NULL){
         if(curr->mem_block->free==1 && curr->mem_block->size>=size){
             ans=curr;
+            //printf("brooke\n");
             break;
         }
         else{
+            //printf("no find\n");
             curr=curr->next_node;
         }
     }
+    //printf("end_free\n");
     return ans;
+}
+
+struct free_list_node* add_node_to_free_list_head(struct free_list_node* f_node){
+    struct free_list_node* free_head=free_list_head;
+    f_node->prev_node=NULL;
+    f_node->next_node=free_list_head;
+    if(f_node->next_node!=NULL){
+        f_node->next_node->prev_node=f_node;
+    }
+    free_list_head=f_node;
+    return f_node;
 }
 
 // request 2 pages from os not sbrk
 struct memory_block* request_from_os(struct memory_block* last_block, size_t size){
     printf("requesting from os\n");
     size_t page_size = getpagesize();
-    printf("mmap pre11\b");
+    //printf("mmap pre11\b");
     printf("page size: %lu\n", page_size);
-    printf("mmap pre1\n");
-    struct memory_block* new_block;
+    //printf("mmap pre1\n");
+    struct memory_block* new_block=NULL;
     size_t tot_size=size+BLOCK_SIZE;
     size_t n_pages;
     if(tot_size%page_size!=0){
@@ -79,106 +95,113 @@ struct memory_block* request_from_os(struct memory_block* last_block, size_t siz
     else{
         n_pages=fmax(2,tot_size/page_size);
     }
-    printf("mmap pre\n");
+    //printf("mmap pre\n");
     void* requested_block = mmap(NULL, n_pages*page_size,
         PROT_READ | PROT_WRITE,
         MAP_PRIVATE | MAP_ANONYMOUS,
         -1, 0);
     if (requested_block == MAP_FAILED) {
-        perror("mmap failed\n");
+        //perror("mmap failed\n");
         return NULL;
     }
-    printf("mmap done\n");
+    //printf("mmap done\n");
     new_block = (struct memory_block*)requested_block;
-    if(last_block!=NULL){
-        new_block->prev_block=last_block->prev_block;
-        last_block->prev_block=new_block;
-    }
+    // if(last_block!=NULL){
+    //     new_block->prev_block=last_block->prev_block;
+    //     last_block->prev_block=new_block;
+    // }
     new_block->size=n_pages*page_size-BLOCK_SIZE;
-    new_block->free=false;
+    new_block->free=0;
     new_block->next_block=NULL;
     new_block->prev_block=NULL;
     new_block->ptr=new_block->data;
-    if(last_block){
-        last_block->next_block=new_block;
-        new_block->prev_block=last_block;
+    struct memory_block* l_head=(struct memory_block*)(list_head);
+    struct memory_block* l_tail=(struct memory_block*)(list_tail);
+    if(list_head==NULL){
+        list_head=new_block;
+        list_tail=list_head;
     }
+    else{
+        l_head->next_block=new_block;
+        l_head->next_block->prev_block=l_head;
+        l_tail=new_block;
+        list_head=l_head;
+        list_tail=l_tail;
+    }
+    // if(last_block){
+    //     last_block->next_block=new_block;
+    //     new_block->prev_block=last_block;
+    // }
     struct memory_block* res=new_block;
     if(new_block->size-tot_size>=MIN_ALLOC_SZ){
         //split_block
         res=split_block(new_block,tot_size);
     }
-    printf("done\n");
+    //printf("done\n");
     return res;
 }
 
 struct memory_block* split_block(struct memory_block* block,size_t size){
-    struct memory_block* n_block;
-    //n_block=(struct memory_block*)(block->data+size); //start address of new block
-    n_block=(struct memory_block*)(block->data+block->size-size-BLOCK_SIZE);
-    //n_block->size=block->size-size-BLOCK_SIZE;
-    n_block->size=size;
+    struct memory_block* n_block=NULL;
+    n_block=(struct memory_block*)(block->data+size); //start address of new block
+    n_block->size=block->size-size-BLOCK_SIZE;
     n_block->next_block=block->next_block;
     n_block->prev_block=block;
-    n_block->free=0;
-    block->free=1;
+    n_block->free=1;
     n_block->ptr=n_block->data;
     block->next_block=n_block;
     block->size=size;
     if(n_block->next_block!=NULL){
         n_block->next_block->prev_block=n_block;
     }
+    if(block==list_tail){
+        list_tail=n_block;
+    }
     // add node that points to block to to head of free list
-    struct free_list_node* free_head=(struct free_list_node*)free_list_head;
     struct free_list_node* n_free_node=(struct free_list_node*)(malloc(sizeof(struct free_list_node)));
-    n_free_node->mem_block=block;
-    if(free_head){
-        n_free_node->prev_node=NULL;
-        n_free_node->next_node=free_head;
-        free_head->prev_node=n_free_node;
-    }
-    else{
-        n_free_node->prev_node=NULL;
-        n_free_node->next_node=NULL;
-        free_list_head=n_free_node;
-    }
-
-    return n_block;
+    n_free_node->mem_block=n_block;
+    add_node_to_free_list_head(n_free_node);
+    return block;
 }
 
 void* my_malloc(size_t size){
-    struct memory_block* block;
-    struct free_list_node* free_node;
+    struct memory_block* block=NULL;
+    struct free_list_node* free_node=NULL;
     size_t s;
     s=align8(size);
-    if(free_list_head){
+    if(free_list_head!=NULL){
+        //printf("free_list_not_empty\n");
         free_node=find_free_node(s);
-        if(free_node){
+        if(free_node!=NULL){
             block=free_node->mem_block;
+            // printf("%f\n",block->size);
             if(block->size-s>=MIN_ALLOC_SZ){
                 //split_block
+                //printf("call split\n");
                 block=split_block(block,s);
+                //printf("got split\n");
             }
             block->free=0;
         }
         else{
             block=request_from_os(NULL,s);
-            if(!block){
+            if(block==NULL){
                 return NULL;
             }
         }
     }
     else{
         // free list is empty
+        //printf("free_list_empty\n");
         block=request_from_os(NULL,s);
-        if(!block){
+        if(block==NULL){
             return NULL;
         }
-        list_head=block;
+        //list_head=block;
     }
-    printf("req_from_os_done\n");
+    //printf("got node\n");
     free_node_from_free_list(free_node);
-    printf("free_node_freelist_done\n");
+    //printf("free_node_freelist_done\n");
     return block->data;
 }
 
@@ -197,24 +220,25 @@ struct free_list_node* find_free_list_node(struct memory_block* block)
 }
 
 void free_node_from_free_list(struct free_list_node* node_that_goes){
-    printf("about_tofree1\n");
-    if(node_that_goes){
+    //printf("about_tofree1\n");
+    if(node_that_goes!=NULL){
         //delete free node from free list
-        printf("about_tofree2\n");
+        //printf("about_tofree2\n");
         struct free_list_node* prev_free=node_that_goes->prev_node;
         struct free_list_node* next_free=node_that_goes->next_node;
-        printf("about_tofree3\n");
+        //printf("about_tofree3\n");
         if(prev_free){
-            printf("about_tofree4\n");
+            //printf("about_tofree4\n");
+            //printf("%p",next_free->mem_block->size);
             if(next_free){
-                printf("about_tofree7\n");
+                //printf("about_tofree7\n");
                 prev_free->next_node=next_free;
-                printf("about_tofree8\n");
+                //printf("about_tofree8\n");
                 next_free->prev_node=prev_free;
-                printf("about_tofree9\n");
+                //printf("about_tofree9\n");
             }
             else{
-                printf("about_tofree10\n");
+                //printf("about_tofree10\n");
                 prev_free->next_node=NULL;
             }
         }
@@ -223,13 +247,13 @@ void free_node_from_free_list(struct free_list_node* node_that_goes){
         //     next_free->prev_node=NULL;
         // }
         else{
-            printf("about_tofree6\n");
+            //printf("about_tofree6\n");
             free_list_head=next_free;
             if(next_free){
                 next_free->prev_node=NULL;
             }
         }
-        printf("about_tofree\n");
+        //printf("about_tofree\n");
         free(node_that_goes);
     } 
 }
@@ -243,10 +267,8 @@ struct memory_block* coalesce_blocks(struct memory_block* block){
             if(block->next_block!=NULL){
                 block->next_block->prev_block=block;
             }
-            block->size+=BLOCK_SIZE+block->next_block->size;
-            block->next_block=block->next_block->next_block;
-            if(block->next_block!=NULL){
-                block->next_block->prev_block=block;
+            else{
+                list_tail=block;
             }
             //delete node_that_goes
             free_node_from_free_list(node_that_goes); 
@@ -263,10 +285,11 @@ int addr_valid(void* p){
             }
         }
     }
-    return 1;
+    return 0;
 }
 
 void my_free(void* ptr){
+    //printf("myfree\n");
     if(addr_valid(ptr)==1){
         struct memory_block* memory_block_ptr=get_memory_block_ptr(ptr);
         memory_block_ptr->free=1;
@@ -276,23 +299,11 @@ void my_free(void* ptr){
             munmap(memory_block_ptr,memory_block_ptr->size+BLOCK_SIZE);
             return;
         }
-        // struct memory_block* prev=memory_block_ptr->prev_block;
-        // struct memory_block* next=memory_block_ptr->next_block;
-        // struct free_list_node* free_head=free_list_head; 
-        // add node to free list
         // add node that points to block to to head of free list
-        struct free_list_node* free_head=(struct free_list_node*)free_list_head;
+        //struct free_list_node* free_head=(struct free_list_node*)free_list_head;
         struct free_list_node* n_free_node=(struct free_list_node*)(malloc(sizeof(struct free_list_node)));
         n_free_node->mem_block=memory_block_ptr;
-        if(free_head){
-            n_free_node->prev_node=NULL;
-            n_free_node->next_node=free_head;
-            free_head->prev_node=n_free_node;
-        }
-        else{
-            free_list_head=n_free_node;
-        }
-
+        add_node_to_free_list_head(n_free_node);
         if(memory_block_ptr->prev_block!=NULL && memory_block_ptr->prev_block->free==1){
             //merge previous block since its free
             memory_block_ptr=coalesce_blocks(memory_block_ptr->prev_block);
@@ -303,25 +314,25 @@ void my_free(void* ptr){
             memory_block_ptr=coalesce_blocks(memory_block_ptr);
         }
         //if size is still greater than twice page size then release back to os and delete the free list node
-        if(memory_block_ptr->size+BLOCK_SIZE>=2*page_size){
-            struct free_list_node* node_that_goes=find_free_list_node(memory_block_ptr);
-            if(memory_block_ptr->prev_block){
-                memory_block_ptr->prev_block->next_block=memory_block_ptr->next_block;
-                if(memory_block_ptr->next_block){
-                    memory_block_ptr->next_block->prev_block=memory_block_ptr->prev_block;
-                }
-            }
-            else if(memory_block_ptr->next_block){
-                memory_block_ptr->next_block->prev_block=NULL;
-                list_head=memory_block_ptr->next_block;
-            }
-            else{
-                list_head=NULL;
-            }
-            free_node_from_free_list(node_that_goes);
-            munmap(memory_block_ptr,memory_block_ptr->size+BLOCK_SIZE);
-            return;
-        }
+        // if(memory_block_ptr->size+BLOCK_SIZE>=2*page_size){
+        //     struct free_list_node* node_that_goes=find_free_list_node(memory_block_ptr);
+        //     if(memory_block_ptr->prev_block){
+        //         memory_block_ptr->prev_block->next_block=memory_block_ptr->next_block;
+        //         if(memory_block_ptr->next_block){
+        //             memory_block_ptr->next_block->prev_block=memory_block_ptr->prev_block;
+        //         }
+        //     }
+        //     else if(memory_block_ptr->next_block){
+        //         memory_block_ptr->next_block->prev_block=NULL;
+        //         list_head=memory_block_ptr->next_block;
+        //     }
+        //     else{
+        //         list_head=NULL;
+        //     }
+        //     free_node_from_free_list(node_that_goes);
+        //     munmap(memory_block_ptr,memory_block_ptr->size+BLOCK_SIZE);
+        //     return;
+        // }
     }
     return;
 }
