@@ -2,3 +2,6 @@ cmake*
 .idea/
 .DS_store
 *.dSYM
+correctness_malloc_abhinav
+malloc_malloc_abhinav
+*.o

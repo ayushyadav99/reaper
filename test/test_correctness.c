@@ -1,3 +1,5 @@
+//test doing a malloc and free iteratively 
+
 #include <stdio.h>
 #include <assert.h>
 #include "malloc_common.h"
