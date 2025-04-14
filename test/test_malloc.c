@@ -3,12 +3,8 @@
 #include "malloc_common.h"
 
 void test_basic_alloc_free(void) {
-<<<<<<< HEAD
     int* ptr = (int*)my_malloc(sizeof(int));
-=======
-    int* ptr = (int*)malloc(sizeof(int));
     printf("%p\n", ptr);
->>>>>>> origin
     assert(ptr != NULL);
     *ptr = 42;
     my_free(ptr);
