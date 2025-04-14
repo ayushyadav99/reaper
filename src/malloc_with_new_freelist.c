@@ -17,8 +17,6 @@ struct memory_block{
     size_t size;
     struct memory_block* next_block;
     struct memory_block* prev_block;
-    //void* ptr;
-    //char data[1];
 };
 
 // struct for freelist with prev, next (freelist) and a pointer to memory_block
@@ -53,12 +51,10 @@ void display_mem_map();
 
 struct free_list_node* find_free_node(size_t size){
     struct free_list_node* curr=free_list_head;
-    //printf("find free\n");
     struct free_list_node* ans=NULL;
     while(curr!=NULL){
         if(curr->mem_block->free==1 && curr->mem_block->size>=size){
             ans=curr;
-            // printf("brooke\n");
             break;
         }
         else{
@@ -66,7 +62,6 @@ struct free_list_node* find_free_node(size_t size){
             curr=curr->next_node;
         }
     }
-    //printf("end_free\n");
     return ans;
 }
 
@@ -85,9 +80,6 @@ struct free_list_node* add_node_to_free_list_head(struct free_list_node* f_node)
 struct memory_block* request_from_os(struct memory_block* last_block, size_t size){
     printf("requesting from os\n");
     size_t page_size = getpagesize();
-    //printf("mmap pre11\b");
-    // printf("page size: %lu\n", page_size);
-    //printf("mmap pre1\n");
     struct memory_block* new_block=NULL;
     size_t tot_size=size+BLOCK_SIZE;
     size_t n_pages;
@@ -103,20 +95,13 @@ struct memory_block* request_from_os(struct memory_block* last_block, size_t siz
         MAP_PRIVATE | MAP_ANONYMOUS,
         -1, 0);
     if (requested_block == MAP_FAILED) {
-        //perror("mmap failed\n");
         return NULL;
     }
-    //printf("mmap done\n");
     new_block = (struct memory_block*)requested_block;
-    // if(last_block!=NULL){
-    //     new_block->prev_block=last_block->prev_block;
-    //     last_block->prev_block=new_block;
-    // }
     new_block->size=n_pages*page_size-BLOCK_SIZE;
     new_block->free=0;
     new_block->next_block=NULL;
     new_block->prev_block=NULL;
-    //new_block->ptr=new_block->data;
     struct memory_block* l_head=(struct memory_block*)(list_head);
     struct memory_block* l_tail=(struct memory_block*)(list_tail);
     if(list_head==NULL){
@@ -144,12 +129,8 @@ struct memory_block* request_from_os(struct memory_block* last_block, size_t siz
 }
 
 struct memory_block* split_block(struct memory_block* block,size_t size){
-    display_mem_map();
-    printf("pre_block_split\n");
-    printf("block size: %zu\n    size: %zu\n",block->size,size);
-    display_free_list();
     struct memory_block* n_block=NULL;
-    n_block=(struct memory_block*)(block+BLOCK_SIZE+size); //start address of new block
+    n_block=(struct memory_block*)((char*)(block+1)+size); //start address of new block
     n_block->size=block->size-size-BLOCK_SIZE;
     n_block->next_block=block->next_block;
     n_block->prev_block=block;
@@ -167,9 +148,6 @@ struct memory_block* split_block(struct memory_block* block,size_t size){
     struct free_list_node* n_free_node=(struct free_list_node*)(malloc(sizeof(struct free_list_node)));
     n_free_node->mem_block=n_block;
     add_node_to_free_list_head(n_free_node);
-    printf("block_split");
-    display_free_list();
-    display_mem_map();
     return block;
 }
 
@@ -183,12 +161,9 @@ void* my_malloc(size_t size){
         free_node=find_free_node(s);
         if(free_node!=NULL){
             block=free_node->mem_block;
-            // printf("%f\n",block->size);
             if(block->size-s>=MIN_ALLOC_SZ){
                 //split_block
-                printf("call split\n");
                 block=split_block(block,s);
-                //printf("got split\n");
             }
             block->free=0;
         }
@@ -201,24 +176,18 @@ void* my_malloc(size_t size){
     }
     else{
         // free list is empty
-        printf("free_list_empty\n");
         block=request_from_os(NULL,s);
         if(block==NULL){
             return NULL;
         }
         //list_head=block;
     }
-    //printf("got node\n");
     free_node_from_free_list(free_node);
-    //printf("free_node_freelist_done\n");
-    printf("block_size\n");
-    printf("%zu\n",block->size);
     return block+1;
 }
 
 struct memory_block* get_memory_block_ptr(void* ptr){
-    printf("get_memptr\n");
-    return (struct memory_block*)(ptr-1);
+    return (struct memory_block*)(ptr)-1;
 }
 
 struct free_list_node* find_free_list_node(struct memory_block* block)
@@ -232,48 +201,32 @@ struct free_list_node* find_free_list_node(struct memory_block* block)
 }
 
 void free_node_from_free_list(struct free_list_node* node_that_goes){
-    //printf("about_tofree1\n");
     if(node_that_goes!=NULL){
         //delete free node from free list
-        //printf("about_tofree2\n");
         struct free_list_node* prev_free=node_that_goes->prev_node;
         struct free_list_node* next_free=node_that_goes->next_node;
-        //printf("about_tofree3\n");
         if(prev_free){
-            //printf("about_tofree4\n");
-            //printf("%p",next_free->mem_block->size);
             if(next_free){
-                //printf("about_tofree7\n");
                 prev_free->next_node=next_free;
-                //printf("about_tofree8\n");
                 next_free->prev_node=prev_free;
-                //printf("about_tofree9\n");
             }
             else{
-                //printf("about_tofree10\n");
                 prev_free->next_node=NULL;
             }
         }
-        // else if(next_free){
-        //     printf("about_tofree5\n");
-        //     next_free->prev_node=NULL;
-        // }
         else{
-            //printf("about_tofree6\n");
             free_list_head=next_free;
             if(next_free){
                 next_free->prev_node=NULL;
             }
         }
-        //printf("about_tofree\n");
         free(node_that_goes);
     } 
 }
 
 struct memory_block* coalesce_blocks(struct memory_block* block){
     if(block->next_block!=NULL && block->next_block->free==1){
-        printf("inside_if\n");
-        if(((struct memory_block*)((char*)(block) + block->size))==block->next_block){
+        if(((struct memory_block*)((char*)(block+1) + block->size))==block->next_block){
             struct free_list_node* node_that_goes=find_free_list_node(block->next_block);
             block->size=block->size+block->next_block->size+BLOCK_SIZE;
             block->next_block=block->next_block->next_block;
@@ -302,41 +255,28 @@ int addr_valid(void* p){
 }
 
 void my_free(void* ptr){
-    printf("myfree\n");
-    //display_free_list();
     if(addr_valid(ptr)==1){
-        printf("is_addr_valid\n");
         struct memory_block* memory_block_ptr=get_memory_block_ptr(ptr);
-        printf("got mem array\n");
         memory_block_ptr->free=1;
-        printf("got free\n");
         // if  block is larger than 2 pages then directly release to os
         size_t page_size = getpagesize();
         if(memory_block_ptr->size+BLOCK_SIZE>=2*page_size){
-            printf("munmap\n");
+            //printf("munmap\n");
             munmap(memory_block_ptr,memory_block_ptr->size+BLOCK_SIZE);
             return;
         }
         // add node that points to block to to head of free list
-        //struct free_list_node* free_head=(struct free_list_node*)free_list_head;
         struct free_list_node* n_free_node=(struct free_list_node*)(malloc(sizeof(struct free_list_node)));
         n_free_node->mem_block=memory_block_ptr;
         add_node_to_free_list_head(n_free_node);
-        printf("myfree2\n");
-        display_free_list();
         if(memory_block_ptr->prev_block!=NULL && memory_block_ptr->prev_block->free==1){
             //merge previous block since its free
-            printf("merge 1\n");
             memory_block_ptr=coalesce_blocks(memory_block_ptr->prev_block);
         }
-
         if(memory_block_ptr->next_block!=NULL){
             // try to merge with next block if possible
-            printf("merge 2\n");
             memory_block_ptr=coalesce_blocks(memory_block_ptr);
         }
-        printf("myfree3\n");
-        //display_free_list();
         //if size is still greater than twice page size then release back to os and delete the free list node
         // if(memory_block_ptr->size+BLOCK_SIZE>=2*page_size){
         //     struct free_list_node* node_that_goes=find_free_list_node(memory_block_ptr);
@@ -395,7 +335,7 @@ void display_mem_map()
     {
         printf("=================================================\n");
         printf("Allocation Status: ");
-        if(trav->free)
+        if(trav->free==0)
         {
             printf("Allocated");
         }
@@ -411,34 +351,34 @@ void display_mem_map()
     printf("=================================================\n");
 }
 //TEST CODE BELOW
-struct Student {
-    int id;
-    float gpa;
-  };
+// struct Student {
+//     int id;
+//     float gpa;
+//   };
   
-  int main(int argc, char** argv) {
-    if (argc != 2) {
-      printf("specify number of mallocs\n");
-      return 1;
-    }
-    const int num_objects = atoi(argv[1]);
+//   int main(int argc, char** argv) {
+//     if (argc != 2) {
+//       printf("specify number of mallocs\n");
+//       return 1;
+//     }
+//     const int num_objects = atoi(argv[1]);
   
-    for (int i = 0; i < num_objects; i++) {
-    struct Student* student = (struct Student*)my_malloc(sizeof(struct Student));
+//     for (int i = 0; i < num_objects; i++) {
+//     struct Student* student = (struct Student*)my_malloc(sizeof(struct Student));
   
-    if (student == NULL) {
-      printf("Memory allocation failed!\n");
-      return 1;
-    }
-      student->id = i + 1;
-      student->gpa = 3.0;  
-    printf("student: ID = %d, GPA = %.2f\n", student->id, student->gpa);
-    my_free(student);
-    }
+//     if (student == NULL) {
+//       printf("Memory allocation failed!\n");
+//       return 1;
+//     }
+//       student->id = i + 1;
+//       student->gpa = 3.0;  
+//     printf("student: ID = %d, GPA = %.2f\n", student->id, student->gpa);
+//     my_free(student);
+//     }
   
   
-    return 0;
-  }
+//     return 0;
+//   }
 
 //   // ./a.out 1000000  0.45s user 0.64s system 26% cpu 4.166 total mmap
 //   // ./a.out 1000000  0.43s user 0.64s system 25% cpu 4.111 total sbrk

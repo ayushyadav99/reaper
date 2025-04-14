@@ -13,7 +13,7 @@ int main() {
 
 
   for (int i = 0; i < num_objects; i++) {
-  struct Student* student = (struct Student*)malloc(sizeof(struct Student));
+  struct Student* student = (struct Student*)my_malloc(sizeof(struct Student));
 
   if (student == NULL) {
     printf("Memory allocation failed!\n");
@@ -24,7 +24,7 @@ int main() {
     if(student->id % 100000 == 0) {
       printf("student: ID = %d, GPA = %.2f\n", student->id, student->gpa);
     }
-  free(student);
+  my_free(student);
   }
 
 
