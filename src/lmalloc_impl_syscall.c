@@ -11,7 +11,7 @@ struct block_metadata {
   size_t size;  
 };
 
-void* malloc(size_t size) {
+void* my_malloc(size_t size) {
   //printf("my malloc called\n");
 
   size_t total_size = size + sizeof(struct block_metadata);
@@ -36,7 +36,7 @@ void* malloc(size_t size) {
   return (void*)(metadata + 1);
 }
 
-void free(void* ptr) {
+void my_free(void* ptr) {
   if (ptr != NULL) {
     struct block_metadata* metadata = ((struct block_metadata*)ptr) - 1;
     munmap(metadata, metadata->size);
