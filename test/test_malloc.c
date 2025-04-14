@@ -4,6 +4,7 @@
 
 void test_basic_alloc_free(void) {
     int* ptr = (int*)malloc(sizeof(int));
+    printf("%p\n", ptr);
     assert(ptr != NULL);
     *ptr = 42;
     free(ptr);
