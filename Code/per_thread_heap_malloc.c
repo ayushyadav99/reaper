@@ -12,6 +12,7 @@ pthread_mutex_t lock[64] = {PTHREAD_MUTEX_INITIALIZER};
 struct super_block_meta {
     int owner_thread_id;
     size_t mapped_size;
+    size_t available_size;
     struct super_block_meta* next;
     bool directly_mapped;
 };
@@ -58,6 +59,7 @@ struct super_block_meta *get_new_super_block(struct super_block_meta* last, int 
     new_super_block->next = NULL;
     new_super_block->mapped_size = size;
     new_super_block->directly_mapped = directly_mapped;
+    new_super_block->available_size = SUPER_BLOCK_SIZE;
 
     struct block_meta* block = (struct block_meta*) (new_super_block + 1);
     block->prev = NULL;
@@ -77,9 +79,11 @@ struct block_meta* get_block_from_super_block(size_t size, int thread_id){
 
     while(current) {
         if(thread_id == current->owner_thread_id) {
-            block = find_block_in_super_block(current, size);
-            if(block) {
-                break;
+            if(current->available_size >= size) {
+                block = find_block_in_super_block(current, size);
+                if(block) {
+                    break;
+                }
             }
         }
 
@@ -109,6 +113,7 @@ struct block_meta* split(struct block_meta* block, size_t size) {
         struct block_meta* new_block = (struct block_meta*)(offset_start+size);
 
         new_block->size = block->size - BLOCK_META_SIZE - size;
+        block->my_super_block->available_size -= BLOCK_META_SIZE + size;
         block->size = size;
 
         new_block->next = block->next;
@@ -118,6 +123,8 @@ struct block_meta* split(struct block_meta* block, size_t size) {
 
         new_block->free = block->free;
         new_block->my_super_block = block->my_super_block;
+    }else {
+        block->my_super_block->available_size -= block->size;
     }
     return block;
 }
@@ -152,10 +159,12 @@ void* my_malloc(size_t size) {
 }
 
 void merge (struct block_meta* block) {
+    block->my_super_block->available_size += block->size;
     if(block->next) {
         struct block_meta* next = block->next;
         if(next->free) {
             block->size += next->size + BLOCK_META_SIZE;
+            block->my_super_block->available_size += BLOCK_META_SIZE;
             block->next = next->next;
             if(next->next) {
                 next->next->prev = block;
@@ -166,6 +175,7 @@ void merge (struct block_meta* block) {
         struct block_meta* prev = block->prev;
         if(prev->free) {
             prev->size += block->size + BLOCK_META_SIZE;
+            prev->my_super_block->available_size += BLOCK_META_SIZE;
             prev->next = block->next;
             if(block->next) {
                 block->next->prev = prev;
