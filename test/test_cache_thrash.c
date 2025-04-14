@@ -11,12 +11,22 @@
 */
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <omp.h>  
 #include <time.h> 
 
 #define NUM_THREADS 8
+
+#define USE_MY_MALLOC 1 
+#if USE_MY_MALLOC
+#include "malloc_common.h"
+#define MALLOC my_malloc
+#define FREE my_free
+#else
+#include<stdlib.h>
+#define MALLOC malloc
+#define FREE free
+#endif
 
 /* This struct holds arguments for each thread */
 typedef struct {
@@ -32,7 +42,7 @@ void worker(workerArg* w)
 
   for (i = 0; i < w->iterations; i++) {
     //Object alloc 
-    char* obj = (char*)malloc(w->objSize);
+    char* obj = (char*)MALLOC(w->objSize);
     if (obj == NULL) {
       fprintf(stderr, "Error: Memory allocation failed\n");
       exit(1);
@@ -52,7 +62,7 @@ void worker(workerArg* w)
     }
 
     /* Free the object */
-    free(obj);
+    FREE(obj);
   }
 }
 

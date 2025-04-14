@@ -121,7 +121,7 @@ struct block_meta* split(struct block_meta* block, size_t size) {
     return block;
 }
 
-void* malloc(size_t size) {
+void* my_malloc(size_t size) {
     size = (size + 7) & ~((size_t)7);
 
     if(size > SUPER_BLOCK_SIZE) {
@@ -165,7 +165,7 @@ void merge (struct block_meta* block) {
     }
 }
 
-void free(void *ptr) {
+void my_free(void *ptr) {
     if(!ptr) return;
     struct block_meta* block = ((struct block_meta*)ptr) -1;
     assert(block->free == false);

@@ -1,7 +1,17 @@
 #include<omp.h>
 #include <stdio.h>
 #include <assert.h>
+
+#define USE_MY_MALLOC 1 
+#if USE_MY_MALLOC
 #include "malloc_common.h"
+#define MALLOC my_malloc
+#define FREE my_free
+#else
+#include<stdlib.h>
+#define MALLOC malloc
+#define FREE free
+#endif
 
 #define NUM_THREADS 8
 
@@ -25,7 +35,7 @@ int main()
 
     tstart = omp_get_wtime(); //getting the start time
 
-    int *arr = (int*)malloc(100*sizeof(int));
+    int *arr = (int*)MALLOC(100*sizeof(int));
 
     int a = 1;
     int b = 2;
@@ -39,7 +49,7 @@ int main()
         sum_i += arr[i];
     }
 
-    free(arr);
+    FREE(arr);
 
 
     tend = omp_get_wtime(); // getting the end time

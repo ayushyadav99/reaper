@@ -35,7 +35,7 @@ void* list_head=NULL;
 struct memory_block* split_block(struct memory_block* block,size_t size);
 struct memory_block* find_free_block(struct memory_block** last_block, size_t size);
 struct memory_block* request_from_os(struct memory_block* last_block, size_t size);
-void* malloc(size_t size);
+void* my_malloc(size_t size);
 
 struct memory_block* syscall_for_mem(size_t size) {
     struct memory_block* new_block = NULL;
@@ -134,7 +134,7 @@ struct memory_block* split_block(struct memory_block* block,size_t size){
     return n_block;
 }
 
-void* malloc(size_t size){
+void* my_malloc(size_t size){
     struct memory_block* block;
     struct memory_block* last_block;
     size_t s;
@@ -209,7 +209,7 @@ int addr_valid(void* p){
     return 0;
 }
 
-void free(void* ptr){
+void my_free(void* ptr){
     if(addr_valid(ptr)==1){
         struct memory_block* memory_block_ptr=get_memory_block_ptr(ptr);
         memory_block_ptr->free=1;
