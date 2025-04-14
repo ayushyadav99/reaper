@@ -12,3 +12,7 @@ cmake*
 # we want to track these no extension files 
 !Makefile
 !LICENSE
+/Code/cmake-build-debug
+/Code/.idea
+test/.idea/workspace.xml
+.DS_Store
