@@ -2,6 +2,13 @@ cmake*
 .idea/
 .DS_store
 *.dSYM
-correctness_malloc_abhinav
-malloc_malloc_abhinav
 *.o
+
+# Ignore all executables (no extension files)
+*
+!*.*
+!*/
+
+# we want to track these no extension files 
+!Makefile
+!LICENSE
