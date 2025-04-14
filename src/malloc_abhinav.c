@@ -121,7 +121,7 @@ struct block_meta* split(struct block_meta* block, size_t size) {
     return block;
 }
 
-void* my_malloc(size_t size) {
+void* malloc(size_t size) {
     size = (size + 7) & ~((size_t)7);
 
     if(size > SUPER_BLOCK_SIZE) {
@@ -165,7 +165,7 @@ void merge (struct block_meta* block) {
     }
 }
 
-void my_free(void *ptr) {
+void free(void *ptr) {
     if(!ptr) return;
     struct block_meta* block = ((struct block_meta*)ptr) -1;
     assert(block->free == false);
@@ -178,16 +178,4 @@ void my_free(void *ptr) {
     }
 }
 
-/*
-CFLAGS = -Xpreprocessor -fopenmp \
-         -I/opt/homebrew/opt/libomp/include \
-         -L/opt/homebrew/opt/libomp/lib \
-         -lomp -lm -Wall -Iinclude
-*/
-int main() {
 
-    printf("%lu\n", sizeof(struct super_block_meta));
-    printf("%lu\n", sizeof(struct block_meta));
-
-    return 0;
-}
