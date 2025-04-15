@@ -80,7 +80,7 @@ struct free_list_node* add_node_to_free_list_head(struct free_list_node* f_node)
 
 // request 2 pages from os not sbrk
 struct block_meta* request_from_os(struct block_meta* last_block, size_t size){
-    //printf("requesting from os\n");
+    printf("requesting from os\n");
     size_t page_size = getpagesize();
     struct block_meta* new_block=NULL;
     size_t tot_size=size+BLOCK_SIZE;
