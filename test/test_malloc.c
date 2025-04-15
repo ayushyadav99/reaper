@@ -1,15 +1,6 @@
 #include <stdio.h>
 #include <assert.h>
 
-// #ifdef USE_MY_MALLOC_ENV
-//   #include "malloc_common.h"
-//   #define MALLOC my_malloc
-//   #define FREE my_free
-// #else
-//   #include<stdlib.h>
-//   #define MALLOC malloc
-//   #define FREE free
-// #endif
 
 #define USE_MY_MALLOC 1
 #if USE_MY_MALLOC
