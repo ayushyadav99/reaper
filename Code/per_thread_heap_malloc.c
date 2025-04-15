@@ -85,8 +85,12 @@ struct super_block_meta *get_new_super_block(struct super_block_meta* last, int 
         exit(1);
     }
 
-    if(last) last->next = new_super_block;
-    else if(!directly_mapped) global_super_block_pointer[thread_id] = new_super_block;
+    if(!directly_mapped) {
+        new_super_block->next = global_super_block_pointer[thread_id];
+        global_super_block_pointer[thread_id] = new_super_block;
+    }else {
+        new_super_block->next = NULL;
+    }
 
     new_super_block->owner_thread_id = thread_id;
     new_super_block->next = NULL;
@@ -116,14 +120,12 @@ struct block_meta* get_block_from_super_block(size_t size, int thread_id){
     struct block_meta* block = NULL;
 
     while(current) {
-        if(thread_id == current->owner_thread_id) {
             if(current->available_size >= size) {
                 block = find_block_in_super_block(current, size);
                 if(block) {
                     break;
                 }
             }
-        }
 
         last = current;
         current = current->next;
@@ -252,6 +254,7 @@ CFLAGS = -Xpreprocessor -fopenmp \
          -lomp -lm -Wall -Iinclude
 */
 
+<<<<<<< HEAD
 #define NUM_THREADS 8
 #define ITERATION_COUNT 1000
 #define size 512
@@ -376,3 +379,5 @@ void *run_test() {
     execution_time[pt] = elapsed_time;
     return NULL;
 }
+=======
+>>>>>>> origin
