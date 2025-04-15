@@ -35,7 +35,7 @@ struct block_meta {
 #define SUPER_BLOCK_SIZE ((64*getpagesize()) - BLOCK_META_SIZE - SUPER_BLOCK_META_SIZE)
 #define MINIMUM_BLOCK_SIZE 8
 
-struct block_meta* find_block_in_super_block(struct super_block_meta* super_block, size_t size) {
+struct block_meta* find_block_in_super_block(const struct super_block_meta* super_block, size_t size) {
     struct block_meta* current = super_block->free_list;
     while(current && !(current->free == true && current->size >= size )) {
         current = current->free_list_next;
@@ -71,7 +71,7 @@ void remove_from_free_list (struct block_meta* block) {
     block->free_list_prev = NULL;
 }
 
-struct super_block_meta *get_new_super_block(struct super_block_meta* last, int thread_id, bool directly_mapped, size_t size) {
+struct super_block_meta *get_new_super_block(int thread_id, bool directly_mapped, size_t size) {
     struct super_block_meta* new_super_block = mmap(
         NULL,
         size,
@@ -115,7 +115,6 @@ struct super_block_meta *get_new_super_block(struct super_block_meta* last, int 
 
 struct block_meta* get_block_from_super_block(size_t size, int thread_id){
     struct super_block_meta* current = global_super_block_pointer[thread_id];
-    struct super_block_meta* last = NULL;
 
     struct block_meta* block = NULL;
 
@@ -127,13 +126,12 @@ struct block_meta* get_block_from_super_block(size_t size, int thread_id){
                 }
             }
 
-        last = current;
         current = current->next;
     }
 
     if(!current) {
         assert(block == NULL);
-        current = get_new_super_block(last, thread_id, false, 64*getpagesize());
+        current = get_new_super_block( thread_id, false, 64*getpagesize());
         block = find_block_in_super_block(current, size);
     }
 
@@ -141,7 +139,7 @@ struct block_meta* get_block_from_super_block(size_t size, int thread_id){
 };
 
 struct block_meta* get_directly_mapped_block(size_t size, int thread_id) {
-    struct super_block_meta* new_block = get_new_super_block(NULL, thread_id, true, size);
+    struct super_block_meta* new_block = get_new_super_block( thread_id, true, size);
     struct block_meta* block = (struct block_meta*) (new_block+1);
 
     return block;
@@ -253,4 +251,43 @@ CFLAGS = -Xpreprocessor -fopenmp \
          -L/opt/homebrew/opt/libomp/lib \
          -lomp -lm -Wall -Iinclude
 */
+
+
+
+#define ASSERT(expr) \
+if (!(expr)) { \
+printf("\033[0;31mFAILED: Correctness test failed!\033[0m\n"); \
+exit(1); \
+}
+
+#define NUM_THREADS 8
+#define NUM_ROWS 10000
+#define NUM_COLS 1000
+
+int main() {
+    omp_set_num_threads(NUM_THREADS);
+    int *matrix[NUM_ROWS];
+
+#pragma omp parallel for
+    for (int i = 0; i < NUM_ROWS; i++) {
+        matrix[i] = (int *)my_malloc(sizeof(int)*NUM_COLS);
+        assert(matrix[i] != NULL);
+
+        for (int j = 0; j < NUM_COLS; j++) {
+            matrix[i][j] = i+j;
+        }
+    }
+
+    for(int i=0; i<NUM_ROWS; i++) {
+        for(int j=0; j<NUM_COLS; j++) {
+            ASSERT(matrix[i][j] == i+j);
+        }
+    }
+
+    for (int i=0; i<NUM_ROWS; i++) {
+        my_free(matrix[i]);
+    }
+    printf("\033[0;32mPASS: Correctness test passed!\033[0m\n");
+    return 0;
+}
 
