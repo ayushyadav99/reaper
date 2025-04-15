@@ -1,5 +1,6 @@
 CC = clang
 CFLAGS = -Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include -L/opt/homebrew/opt/libomp/lib -lomp -lm -Wall -Iinclude
+CFLAGS_MY_MALLOC = -Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include -L/opt/homebrew/opt/libomp/lib -lomp -lm -Wall -Iinclude -DUSE_MY_MALLOC
 # clang -Xpreprocessor -fopenmp -lomp -I"$(brew --prefix libomp)/include" -L"$(brew --prefix libomp)/lib" myfile.cxx
 # Find all source files
 IMPL_SOURCES = $(wildcard src/malloc_*.c)
@@ -9,12 +10,17 @@ TEST_SOURCES = $(wildcard test/test_*.c)
 IMPL_NAMES = $(notdir $(basename $(IMPL_SOURCES)))
 TEST_NAMES = $(patsubst test_%,%,$(notdir $(basename $(TEST_SOURCES))))
 
-# Generate all targets (each test with each implementation)
-ALL_TARGETS = $(foreach impl,$(IMPL_NAMES),\
+STD_TARGETS = $(foreach impl,$(IMPL_NAMES),\
                 $(foreach test,$(TEST_NAMES),\
-                    $(test)_$(impl)))
+                    $(test)_$(impl)_std))
 
-.PHONY: all clean test list
+MY_MALLOC_TARGETS = $(foreach impl,$(IMPL_NAMES),\
+                      $(foreach test,$(TEST_NAMES),\
+                          $(test)_$(impl)_my_malloc))
+
+ALL_TARGETS = $(STD_TARGETS) $(MY_MALLOC_TARGETS)
+
+.PHONY: clean all test_my_malloc test_std list
 
 all: $(ALL_TARGETS)
 
@@ -24,23 +30,35 @@ $(info TEST_SOURCES: $(TEST_SOURCES))
 $(info ALL_TARGETS: $(ALL_TARGETS))
 
 # Use explicit rules for each target
-define make-test-target
-$(1)_$(2): test/test_$(1).c src/$(2).o
+define make-test-target-my-malloc
+$(1)_$(2)_my_malloc: test/test_$(1).c src/$(2).o
+	$(CC) $(CFLAGS_MY_MALLOC) $$^ -o $$@
+endef
+
+define make-test-target-std
+$(1)_$(2)_std: test/test_$(1).c src/$(2).o
 	$(CC) $(CFLAGS) $$^ -o $$@
 endef
 
 # Generate rules for all combinations
 $(foreach impl,$(IMPL_NAMES),\
   $(foreach test,$(TEST_NAMES),\
-    $(eval $(call make-test-target,$(test),$(impl)))))
+    $(eval $(call make-test-target-my-malloc,$(test),$(impl)))))
 
-# Rule to build object files
-%.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
+# Generate rules for all combinations
+$(foreach impl,$(IMPL_NAMES),\
+  $(foreach test,$(TEST_NAMES),\
+    $(eval $(call make-test-target-std,$(test),$(impl)))))
 
-# Run all tests with time measurement
-test: $(ALL_TARGETS)
-	@for test in $(ALL_TARGETS); do \
+test_std: $(STD_TARGETS)
+	@for test in $(STD_TARGETS); do \
+		echo "\nRunning $$test..."; \
+		time ./$$test; \
+		echo "-----------------------------------------------------------------"; \
+	done
+
+test_my_malloc: $(MY_MALLOC_TARGETS)
+	@for test in $(MY_MALLOC_TARGETS); do \
 		echo "\nRunning $$test..."; \
 		time ./$$test; \
 		echo "-----------------------------------------------------------------"; \
