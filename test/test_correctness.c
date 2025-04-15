@@ -15,6 +15,12 @@
 #define FREE free
 #endif
 
+#define ASSERT(expr) \
+    if (!(expr)) { \
+        printf("\033[0;31mFAILED: Correctness test failed!\033[0m\n"); \
+        exit(1); \
+    }
+
 #define NUM_THREADS 8
 #define NUM_ROWS 10000
 #define NUM_COLS 1000
@@ -35,14 +41,14 @@ int main() {
   
   for(int i=0; i<NUM_ROWS; i++) {
     for(int j=0; j<NUM_COLS; j++) {
-      assert(matrix[i][j] == i+j);
+      ASSERT(matrix[i][j] == i+j);
     }
   }
   
   for (int i=0; i<NUM_ROWS; i++) {
     FREE(matrix[i]);
   }
-  printf("correctness test passed\n");
+  printf("\033[0;32mPASS: Correctness test passed!\033[0m\n");
   return 0;
 }
 
