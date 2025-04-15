@@ -82,7 +82,7 @@ struct super_block_meta *get_new_super_block(struct super_block_meta* last, int 
 
     if(new_super_block == MAP_FAILED) {
         perror("mmap");
-        exit(EXIT_FAILURE);
+        exit(1);
     }
 
     if(last) last->next = new_super_block;
@@ -253,7 +253,7 @@ CFLAGS = -Xpreprocessor -fopenmp \
 */
 
 #define NUM_THREADS 8
-#define ITERATION_COUNT 1000000
+#define ITERATION_COUNT 1000
 #define size 512
 #define USECSPERSEC 1000000.0
 
