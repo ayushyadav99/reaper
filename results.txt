@@ -1,4 +1,0 @@
-./baseline 1000000  0.45s user 0.65s system 26% cpu 4.139 total
-./ayush_malloc 1000000  1.12s user 3.31s system 69% cpu 6.343 total
-./malloc_without_freelist_deletion 1000000  0.44s user 0.65s system 26% cpu 4.127 total
-./malloc_with_free_del 1000000  0.44s user 0.65s system 26% cpu 4.091 total
