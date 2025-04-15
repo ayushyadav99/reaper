@@ -1,9 +1,6 @@
 CC = clang
 CFLAGS = -Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include -L/opt/homebrew/opt/libomp/lib -lomp -lm -Wall -Iinclude
-<<<<<<< HEAD
-=======
 CFLAGS_MY_MALLOC = -Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include -L/opt/homebrew/opt/libomp/lib -lomp -lm -Wall -Iinclude -DUSE_MY_MALLOC
->>>>>>> origin
 # clang -Xpreprocessor -fopenmp -lomp -I"$(brew --prefix libomp)/include" -L"$(brew --prefix libomp)/lib" myfile.cxx
 # Find all source files
 IMPL_SOURCES = $(wildcard src/malloc_*.c)
