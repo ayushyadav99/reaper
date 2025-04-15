@@ -14,6 +14,7 @@ struct super_block_meta {
     size_t mapped_size;
     size_t available_size;
     struct super_block_meta* next;
+    struct block_meta* free_list;
     bool directly_mapped;
 };
 
@@ -22,20 +23,51 @@ struct block_meta {
     struct block_meta* next;
     struct block_meta* prev;
     struct super_block_meta* my_super_block;
+
+    struct block_meta* free_list_next;
+    struct block_meta* free_list_prev;
     bool free;
 };
 
 #define SUPER_BLOCK_META_SIZE (sizeof(struct super_block_meta))
 #define BLOCK_META_SIZE (sizeof(struct block_meta))
-#define SUPER_BLOCK_SIZE ((64*getpagesize()) - BLOCK_META_SIZE - SUPER_BLOCK_META_SIZE)
+#define SUPER_BLOCK_SIZE ((16*getpagesize()) - BLOCK_META_SIZE - SUPER_BLOCK_META_SIZE)
 #define MINIMUM_BLOCK_SIZE 8
 
 struct block_meta* find_block_in_super_block(struct super_block_meta* super_block, size_t size) {
-    struct block_meta* current = (struct block_meta*) (super_block + 1);
+    struct block_meta* current = super_block->free_list;
     while(current && !(current->free == true && current->size >= size )) {
-        current = current->next;
+        current = current->free_list_next;
     }
     return current;
+}
+
+void add_to_free_list (struct block_meta* block) {
+    block->free_list_next = block->my_super_block->free_list;
+    block->free_list_prev = NULL;
+    block->my_super_block->free_list = block;
+    if(block->free_list_next) {
+        block->free_list_next->free_list_prev = block;
+    }
+}
+
+void remove_from_free_list (struct block_meta* block) {
+    if(block->free_list_prev) {
+        if(block->free_list_next) {
+            block->free_list_next->free_list_prev = block->free_list_prev;
+            block->free_list_prev->free_list_next = block->free_list_next;
+        }else {
+            block->free_list_prev->free_list_next = NULL;
+        }
+    }else {
+        if(block->free_list_next) {
+            block->free_list_next->free_list_prev = NULL;
+        }
+        block->my_super_block->free_list = block->free_list_next;
+    }
+
+    block->free_list_next = NULL;
+    block->free_list_prev = NULL;
 }
 
 struct super_block_meta *get_new_super_block(struct super_block_meta* last, int thread_id, bool directly_mapped, size_t size) {
@@ -60,6 +92,7 @@ struct super_block_meta *get_new_super_block(struct super_block_meta* last, int 
     new_super_block->mapped_size = size;
     new_super_block->directly_mapped = directly_mapped;
     new_super_block->available_size = SUPER_BLOCK_SIZE;
+    new_super_block->free_list = NULL;
 
     struct block_meta* block = (struct block_meta*) (new_super_block + 1);
     block->prev = NULL;
@@ -67,6 +100,8 @@ struct super_block_meta *get_new_super_block(struct super_block_meta* last, int 
     block->size = SUPER_BLOCK_SIZE;
     block->free = true;
     block->my_super_block = new_super_block;
+
+    add_to_free_list(block);
 
     return new_super_block;
 }
@@ -93,7 +128,7 @@ struct block_meta* get_block_from_super_block(size_t size, int thread_id){
 
     if(!current) {
         assert(block == NULL);
-        current = get_new_super_block(last, thread_id, false, 64*getpagesize());
+        current = get_new_super_block(last, thread_id, false, 16*getpagesize());
         block = find_block_in_super_block(current, size);
     }
 
@@ -123,9 +158,11 @@ struct block_meta* split(struct block_meta* block, size_t size) {
 
         new_block->free = block->free;
         new_block->my_super_block = block->my_super_block;
+        add_to_free_list(new_block);
     }else {
         block->my_super_block->available_size -= block->size;
     }
+    remove_from_free_list(block);
     return block;
 }
 
@@ -160,6 +197,7 @@ void* my_malloc(size_t size) {
 
 void merge (struct block_meta* block) {
     block->my_super_block->available_size += block->size;
+    add_to_free_list(block);
     if(block->next) {
         struct block_meta* next = block->next;
         if(next->free) {
@@ -169,17 +207,20 @@ void merge (struct block_meta* block) {
             if(next->next) {
                 next->next->prev = block;
             }
+            remove_from_free_list(next);
         }
     }
     if(block->prev) {
         struct block_meta* prev = block->prev;
         if(prev->free) {
+            remove_from_free_list(block);
             prev->size += block->size + BLOCK_META_SIZE;
             prev->my_super_block->available_size += BLOCK_META_SIZE;
             prev->next = block->next;
             if(block->next) {
                 block->next->prev = prev;
             }
+            add_to_free_list(prev);
         }
     }
 }
@@ -212,24 +253,16 @@ CFLAGS = -Xpreprocessor -fopenmp \
 
 int main()
 {
-    int nthreads = NUM_THREADS;
-    int iterations = 1000000;
-    double start_time, end_time;
 
-    omp_set_num_threads(nthreads);
-
-    start_time = omp_get_wtime();
-    volatile int* abhi;
-
-#pragma omp parallel for
-    for(int i = 0; i < iterations; i++) {
-        abhi = (int*)my_malloc(32);
+    double start_time = omp_get_wtime();
+#pragma omp parallel for num_threads(NUM_THREADS)
+    for(int i = 0; i < 1000000; i++) {
+        volatile char* abhinav =  malloc(32);
     }
 
 
-    end_time = omp_get_wtime();
+    double end_time = omp_get_wtime();
 
     printf("Time elapsed = %f seconds.\n", end_time - start_time);
-
     return 0;
 }
