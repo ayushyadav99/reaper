@@ -4,6 +4,10 @@
 #include <assert.h>
 #include<sys/time.h>
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin
 // #ifdef USE_MY_MALLOC_ENV
 //   #include "malloc_common.h"
 //   #define MALLOC my_malloc
