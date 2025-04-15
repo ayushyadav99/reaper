@@ -85,8 +85,12 @@ struct super_block_meta *get_new_super_block(struct super_block_meta* last, int 
         exit(1);
     }
 
-    if(last) last->next = new_super_block;
-    else if(!directly_mapped) global_super_block_pointer[thread_id] = new_super_block;
+    if(!directly_mapped) {
+        new_super_block->next = global_super_block_pointer[thread_id];
+        global_super_block_pointer[thread_id] = new_super_block;
+    }else {
+        new_super_block->next = NULL;
+    }
 
     new_super_block->owner_thread_id = thread_id;
     new_super_block->next = NULL;
@@ -116,14 +120,12 @@ struct block_meta* get_block_from_super_block(size_t size, int thread_id){
     struct block_meta* block = NULL;
 
     while(current) {
-        if(thread_id == current->owner_thread_id) {
             if(current->available_size >= size) {
                 block = find_block_in_super_block(current, size);
                 if(block) {
                     break;
                 }
             }
-        }
 
         last = current;
         current = current->next;
@@ -252,127 +254,3 @@ CFLAGS = -Xpreprocessor -fopenmp \
          -lomp -lm -Wall -Iinclude
 */
 
-#define NUM_THREADS 8
-#define ITERATION_COUNT 1000
-#define size 512
-#define USECSPERSEC 1000000.0
-
-double *execution_time;
-void *run_test();
-void *dummy(unsigned);
-
-int main() {
-    unsigned int i;
-    printf("Object size: %d, Iterations: %d, Threads: %d\n", size, ITERATION_COUNT, NUM_THREADS);
-    execution_time = (double *) my_malloc(sizeof(double)* NUM_THREADS);
-
-    //TODO: see if we need pthread_barrier
-    omp_set_num_threads(NUM_THREADS);
-
-#pragma omp parallel
-    {
-        run_test();
-    }
-
-    double sum = 0.0;
-    double stddev = 0.0;
-    double average;
-
-    for (i=0; i<NUM_THREADS; i++) {
-        sum += execution_time[i];
-    }
-    average = sum/NUM_THREADS;
-
-    for (i=0;i<NUM_THREADS; i++) {
-        double diff = execution_time[i] - average;
-        stddev += diff*diff;
-    }
-    stddev = sqrt(stddev/((NUM_THREADS > 1) ? (NUM_THREADS-1) : 1));
-    if (NUM_THREADS > 1) {
-        printf ("Average exec time = %f seconds, standard deviation = %f.\n", average, stddev);
-    } else {
-        printf ("Average exec time = %f seconds.\n", average);
-    }
-    exit (0);
-}
-/*
-void display_free_list()
-{
-    printf("\nFree List: \n");
-    struct free_list_node* trav = free_list_head;
-    while(trav != NULL)
-    {
-        printf("-------------------------------------------------\n");
-        printf("Allocation Status: ");
-        if(trav->mem_block->free==false)
-        {
-            printf("Allocated");
-        }
-        else
-        {
-            printf("Free");
-        }
-        printf("\n");
-        printf("Size of Mem Blk: %zu\n", trav->mem_block->size);
-        printf("Address of Mem Blk: %p\n", (void*)trav->mem_block);
-        
-        trav = trav->next_node;
-    }
-    printf("-------------------------------------------------\n");
-}
-
-void display_mem_map()
-{
-    printf("\nMemory Mapping: \n");
-    printf("Size of memory block: %zu\n", sizeof(struct block_meta));
-    struct block_meta* trav = list_head;
-    while(trav != NULL)
-    {
-        printf("=================================================\n");
-        printf("Allocation Status: ");
-        if(trav->free==false)
-        {
-            printf("Allocated");
-        }
-        else
-        {
-            printf("Free");
-        }
-        printf("\n");
-        printf("Size of Mem Blk: %zu\n", trav->size);
-        printf("Address of Mem Blk: %p\n", (void*)trav);
-        trav = trav->next_block;
-    }
-    printf("=================================================\n");
-}
-*/
-void *run_test() {
-    register unsigned int i;
-    register unsigned long request_size = size;
-    register uint64_t total_iterations = ITERATION_COUNT;
-    register double start_time, end_time;
-
-
-    //ensure all threads start at the same time
-#pragma omp barrier
-    start_time = omp_get_wtime();
-    {
-        printf("%d\n",sizeof(int**)*total_iterations );
-        int **buf = (int **)my_malloc(sizeof(int**)*total_iterations);
-        for (i=0; i<total_iterations; i++) {
-            buf[i] = my_malloc(request_size);
-        }
-        for(i=0; i<total_iterations; i++){
-            my_free(buf[i]);
-        }
-        my_free(buf);
-    }
-    end_time = omp_get_wtime();
-    double elapsed_time = end_time - start_time;
-
-#pragma omp barrier
-
-    unsigned int pt = omp_get_thread_num();
-    execution_time[pt] = elapsed_time;
-    return NULL;
-}
