@@ -4,12 +4,12 @@ CFLAGS = -fopenmp -Wall -Wextra -lomp -lm -Wall -Iinclude
 # Default target
 .PHONY: run
 run:
-	@$(MAKE) build EXEC=$(file)_test SRC=src/$(file).c TEST=test/$(test).c
+	@$(MAKE) build EXEC=$(file)_test SRC=src/$(file).c TEST=test/$(test).c EXTRA_FLAGS="$(flags)"
 
 # Build rule
 .PHONY: build
 build:
-	$(CC) $(CFLAGS) $(SRC) $(TEST) -o $(EXEC)
+	$(CC) $(CFLAGS) $(EXTRA_FLAGS) $(SRC) $(TEST) -o $(EXEC)
 	@echo "Built $(EXEC)"
 
 # Clean up executables

@@ -3,46 +3,51 @@
 #include <stdio.h>
 #include <assert.h>
 #include<sys/time.h>
+#include<stdint.h>
+#include<stdlib.h>
 
-
-// #ifdef USE_MY_MALLOC_ENV
-//   #include "malloc_common.h"
-//   #define MALLOC my_malloc
-//   #define FREE my_free
-// #else
-//   #include<stdlib.h>
-//   #define MALLOC malloc
-//   #define FREE free
-// #endif
-
-#define USE_MY_MALLOC 1
-#if USE_MY_MALLOC
-#include "malloc_common.h"
-#define MALLOC my_malloc
-#define FREE my_free
+#if USE_MY_MALLOC == 1
+    #include "malloc_common.h"
+    #define MALLOC my_malloc
+    #define FREE my_free
 #else
   #include<stdlib.h>
   #define MALLOC malloc
   #define FREE free
 #endif
 
-#define NUM_THREADS 8
-#define ITERATION_COUNT 1000
-#define size 512
+static unsigned int thread_count = 1;
+static uint64_t iteration_count = 1000000;
+static unsigned long size = 512;
+
 #define USECSPERSEC 1000000.0
 
 double *execution_time;
 void *run_test();
 void *dummy(unsigned);
 
-int main() {
+int main(int argc, char **argv) {
   unsigned int i;
-  printf("Object size: %d, Iterations: %d, Threads: %d\n", size, ITERATION_COUNT, NUM_THREADS);
-  execution_time = (double *) MALLOC(sizeof(double)* NUM_THREADS); 
+  switch (argc)
+    {
+    case 4:			/* size, iteration count, and thread count were specified */
+      thread_count = atoi (argv[3]);
+    case 3:			/* size and iteration count were specified; others default */
+      iteration_count = atoll (argv[2]);
+    case 2:			/* size was specified; others default */
+      size = atoi (argv[1]);
+    case 1:			/* use default values */
+      break;
+    default:
+      printf ("Unrecognized arguments.\n");
+      exit (1);
+    }
 
-  //TODO: see if we need pthread_barrier
-  omp_set_num_threads(NUM_THREADS);
-  
+  printf("Object size: %ld, Iterations: %ld, Threads: %d, malloc_type: %d\n", size, iteration_count, thread_count, USE_MY_MALLOC);
+  execution_time = (double *) MALLOC(sizeof(double)* thread_count);
+
+  omp_set_num_threads(thread_count);
+
   #pragma omp parallel
   {
   run_test();
@@ -52,17 +57,17 @@ int main() {
   double stddev = 0.0;
   double average;
 
-  for (i=0; i<NUM_THREADS; i++) {
-    sum += execution_time[i]; 
+  for (i=0; i<thread_count; i++) {
+    sum += execution_time[i];
   }
-  average = sum/NUM_THREADS;
-  
-  for (i=0;i<NUM_THREADS; i++) {
+  average = sum/thread_count;
+
+  for (i=0;i<thread_count; i++) {
     double diff = execution_time[i] - average;
     stddev += diff*diff;
   }
-  stddev = sqrt(stddev/((NUM_THREADS > 1) ? (NUM_THREADS-1) : 1));
-  if (NUM_THREADS > 1) {
+  stddev = sqrt(stddev/((thread_count > 1) ? (thread_count-1) : 1));
+  if (thread_count > 1) {
     printf ("Average exec time = %f seconds, standard deviation = %f.\n", average, stddev);
   } else {
     printf ("Average exec time = %f seconds.\n", average);
@@ -73,11 +78,11 @@ int main() {
 void *run_test() {
   register unsigned int i;
   register unsigned long request_size = size;
-  register uint64_t total_iterations = ITERATION_COUNT;
+  register uint64_t total_iterations = iteration_count;
   register double start_time, end_time;
 
 
-  //ensure all threads start at the same time 
+  //ensure all threads start at the same time
   #pragma omp barrier
   start_time = omp_get_wtime();
   {
@@ -90,7 +95,7 @@ void *run_test() {
     }
     FREE(buf);
   }
-  end_time = omp_get_wtime(); 
+  end_time = omp_get_wtime();
   double elapsed_time = end_time - start_time;
 
   #pragma omp barrier
