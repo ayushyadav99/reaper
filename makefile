@@ -1,6 +1,6 @@
 CC = clang
-CFLAGS = -Xpreprocessor -fopenmp -I/usr/local/opt/libomp/include \
-      -L/usr/local/opt/libomp/lib -lomp -lm -Wall -Iinclude
+CFLAGS = -Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include \
+      -L/opt/homebrew/opt/libomp/lib -lomp -lm -Wall -Iinclude
 
 # Find all source files
 IMPL_SOURCES = $(wildcard src/malloc_*.c)
@@ -60,3 +60,15 @@ list:
 
 clean:
 	rm -f src/*.o $(ALL_TARGETS)
+
+HOARD_PATH="executables/hoard/libhoard.dylib"
+hoard_test: $(ALL_TARGETS)
+	@for test in $(ALL_TARGETS); do \
+		export DYLD_INSERT_LIBRARIES="$HOARD_PATH" \
+		echo "Done. DYLD_INSERT_LIBRARIES is now set to: $DYLD_INSERT_LIBRARIES" \
+		echo "\nRunning $$test..."; \
+		time ./$$test; \
+		echo "-----------------------------------------------------------------"; \
+	done
+
+

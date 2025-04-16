@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include<sys/time.h>
+#include<stdint.h>
 
 
 // #ifdef USE_MY_MALLOC_ENV

@@ -1,6 +1,3 @@
-// this should be more optimised as it uses a doubly linked list and also has mechanisms to join and split blocks of memory
-// !!Need to test for correctness!!
-
 #include <assert.h>
 #include <string.h>
 #include <sys/types.h>
@@ -10,6 +7,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include<math.h>
+#include<pthread.h>
+
+pthread_mutex_t heap_lock = PTHREAD_MUTEX_INITIALIZER;
 
 // block header size is 48 bytes currently
 struct block_meta{
@@ -158,6 +158,7 @@ struct block_meta* split_block(struct block_meta* block,size_t size){
 }
 
 void* my_malloc(size_t size){
+    pthread_mutex_lock(&heap_lock);
     struct block_meta* block=NULL;
     struct free_list_node* free_node=NULL;
     size_t s;
@@ -176,6 +177,7 @@ void* my_malloc(size_t size){
         else{
             block=request_from_os(NULL,s);
             if(block==NULL){
+                pthread_mutex_unlock(&heap_lock);
                 return NULL;
             }
         }
@@ -184,12 +186,14 @@ void* my_malloc(size_t size){
         // free list is empty
         block=request_from_os(NULL,s);
         if(block==NULL){
+            pthread_mutex_unlock(&heap_lock);
             return NULL;
         }
         //list_head=block;
     }
     free_node_from_free_list(free_node);
     block->free_list_ptr=NULL;
+    pthread_mutex_unlock(&heap_lock);
     return block+1;
 }
 
@@ -265,6 +269,7 @@ int addr_valid(void* p){
 void my_free(void* ptr){
     if(addr_valid(ptr)==1){
         struct block_meta* memory_block_ptr=get_memory_block_ptr(ptr);
+        pthread_mutex_lock(&heap_lock);
         memory_block_ptr->free=true;
         // if  block is larger than 2 pages then directly release to os
         size_t page_size = getpagesize();
@@ -306,6 +311,7 @@ void my_free(void* ptr){
         //     munmap(memory_block_ptr,memory_block_ptr->size+BLOCK_SIZE);
         //     return;
         // }
+        pthread_mutex_unlock(&heap_lock);
     }
     return;
 }
