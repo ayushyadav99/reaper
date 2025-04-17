@@ -14,28 +14,15 @@
 #include <string.h>
 #include <omp.h>  
 #include <time.h> 
+#include<stdlib.h>
 
-#define NUM_THREADS 8
-
-// #ifdef USE_MY_MALLOC_ENV
-//   #include "malloc_common.h"
-//   #define MALLOC my_malloc
-//   #define FREE my_free
-// #else
-//   #include<stdlib.h>
-//   #define MALLOC malloc
-//   #define FREE free
-// #endif
-
-#define USE_MY_MALLOC 1
-#if USE_MY_MALLOC
+#if USE_MY_MALLOC == 1
 #include "malloc_common.h"
 #define MALLOC my_malloc
 #define FREE my_free
 #else
-  #include<stdlib.h>
-  #define MALLOC malloc
-  #define FREE free
+#define MALLOC malloc
+#define FREE free
 #endif
 
 /* This struct holds arguments for each thread */
@@ -76,13 +63,24 @@ void worker(workerArg* w)
   }
 }
 
-int main()
+int main(int argc, char **argv)
 {
-  int nthreads = NUM_THREADS;
-  int iterations = 1000;
-  int objSize = 1;
-  int repetitions = 1000000;
+  int nthreads;
+  int iterations;
+  int objSize;
+  int repetitions;
   double start_time, end_time;
+
+  if (argc > 4) {
+      nthreads = atoi(argv[1]);
+      iterations = atoi(argv[2]);
+      objSize = atoi(argv[3]);
+      repetitions = atoi(argv[4]);
+  } else {
+      printf(" nthreads iterations objSize repetitions order should be followed\n");
+      exit(1);
+  }
+
 
   omp_set_num_threads(nthreads);
 

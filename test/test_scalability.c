@@ -18,7 +18,7 @@
 
 static unsigned int thread_count = 1;
 static uint64_t iteration_count = 1000000;
-static unsigned long size = 512;
+static unsigned long size = 512; 
 
 #define USECSPERSEC 1000000.0
 
@@ -43,11 +43,11 @@ int main(int argc, char **argv) {
       exit (1);
     }
 
-  printf("Object size: %ld, Iterations: %ld, Threads: %d, malloc_type: %d\n", size, iteration_count, thread_count, USE_MY_MALLOC);
-  execution_time = (double *) MALLOC(sizeof(double)* thread_count);
+  //printf("Object size: %ld, Iterations: %ld, Threads: %d, malloc_type: %d\n", size, iteration_count, thread_count, USE_MY_MALLOC);
+  execution_time = (double *) MALLOC(sizeof(double)* thread_count); 
 
   omp_set_num_threads(thread_count);
-
+  
   #pragma omp parallel
   {
   run_test();
@@ -58,10 +58,10 @@ int main(int argc, char **argv) {
   double average;
 
   for (i=0; i<thread_count; i++) {
-    sum += execution_time[i];
+    sum += execution_time[i]; 
   }
   average = sum/thread_count;
-
+  
   for (i=0;i<thread_count; i++) {
     double diff = execution_time[i] - average;
     stddev += diff*diff;
@@ -72,7 +72,7 @@ int main(int argc, char **argv) {
   } else {
     printf ("Average exec time = %f seconds.\n", average);
   }
-  exit (0);
+  exit(0);
 }
 
 void *run_test() {
@@ -82,7 +82,7 @@ void *run_test() {
   register double start_time, end_time;
 
 
-  //ensure all threads start at the same time
+  //ensure all threads start at the same time 
   #pragma omp barrier
   start_time = omp_get_wtime();
   {
@@ -95,7 +95,7 @@ void *run_test() {
     }
     FREE(buf);
   }
-  end_time = omp_get_wtime();
+  end_time = omp_get_wtime(); 
   double elapsed_time = end_time - start_time;
 
   #pragma omp barrier

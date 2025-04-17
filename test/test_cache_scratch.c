@@ -21,31 +21,17 @@
 #include <stdio.h>
 #include <assert.h>
 #include<sys/time.h>
+#include<stdlib.h>
 
-// #ifdef USE_MY_MALLOC_ENV
-//   #include "malloc_common.h"
-//   #define MALLOC my_malloc
-//   #define FREE my_free
-// #else
-//   #include<stdlib.h>
-//   #define MALLOC malloc
-//   #define FREE free
-// #endif
-#define USE_MY_MALLOC 1
-#if USE_MY_MALLOC
+#if USE_MY_MALLOC == 1
 #include "malloc_common.h"
 #define MALLOC my_malloc
 #define FREE my_free
 #else
-  #include<stdlib.h>
   #define MALLOC malloc
   #define FREE free
 #endif
 
-#define NUM_THREADS 8
-#define ITERATION_COUNT 100
-#define OBJ_SIZE 1 
-#define REPETITIONS 10000 
 
 typedef struct {
   char * object;
@@ -79,19 +65,33 @@ void worker(workerArg *arg) {
   }
 }
 
-int main() {
-  omp_set_num_threads(NUM_THREADS);
-  workerArg *args = (workerArg *)MALLOC(NUM_THREADS*sizeof(workerArg));
-  char **objs = (char **)MALLOC(NUM_THREADS * sizeof(char *));
+int main(int argc, char** argv) {
+  int nthreads;
+  int iterations;
+  int objSize;
+  int repetitions;
+
+  if (argc > 4) {
+    nthreads = atoi(argv[1]);
+    iterations = atoi(argv[2]);
+    objSize = atoi(argv[3]);
+    repetitions = atoi(argv[4]);
+  } else {
+    fprintf (stderr, "Usage: %s nthreads iterations objSize repetitions\n", argv[0]);
+    return 1;
+  }
+  omp_set_num_threads(nthreads);
+  workerArg *args = (workerArg *)MALLOC(nthreads*sizeof(workerArg));
+  char **objs = (char **)MALLOC(nthreads * sizeof(char *));
 
   register double start_time, end_time; 
   
-  for (int i=0; i<NUM_THREADS; i++) {
-    objs[i] = (char*)MALLOC(OBJ_SIZE);
+  for (int i=0; i<nthreads; i++) {
+    objs[i] = (char*)MALLOC(objSize);
     args[i].object = objs[i];
-    args[i].objSize = OBJ_SIZE;
-    args[i].repetitions = REPETITIONS/NUM_THREADS;
-    args[i].iterations = ITERATION_COUNT;
+    args[i].objSize = objSize;
+    args[i].repetitions = repetitions/nthreads;
+    args[i].iterations = iterations;
   }
   
   start_time = omp_get_wtime();
