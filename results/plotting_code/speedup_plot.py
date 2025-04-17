@@ -1,7 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Load your CSV (export the table first)
 df = pd.read_csv('reaper_scalability.csv', delimiter='\t')  # Replace with actual file path
 
 thread_counts = df.columns[1:].astype(int)

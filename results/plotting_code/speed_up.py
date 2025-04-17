@@ -1,22 +1,18 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Load all three tables (tab-separated)
 malloc_df = pd.read_csv("libc_malloc_scalability.csv", delimiter='\t')
 hoard_df = pd.read_csv("hoard_scalability.csv", delimiter='\t')
 custom_df = pd.read_csv("reaper_scalability.csv", delimiter='\t')
 
-# Filter only the row with 1 million iterations
 target_iter = 1_000_000
 malloc_row = malloc_df[malloc_df['Iterations'] == target_iter].iloc[0]
 hoard_row = hoard_df[hoard_df['Iterations'] == target_iter].iloc[0]
 custom_row = custom_df[custom_df['Iterations'] == target_iter].iloc[0]
 
-# Extract thread counts (all columns except 'Iterations')
 thread_cols = malloc_df.columns[1:]
 thread_counts = thread_cols.astype(int)
 
-# Compute speedup: time at 1 thread / time at N threads
 malloc_base = malloc_row['1']
 hoard_base = hoard_row['1']
 custom_base = custom_row['1']
@@ -25,7 +21,6 @@ malloc_speedup = malloc_base / malloc_row[thread_cols].astype(float)
 hoard_speedup = hoard_base / hoard_row[thread_cols].astype(float)
 custom_speedup = custom_base / custom_row[thread_cols].astype(float)
 
-# Plot
 plt.figure(figsize=(10, 6))
 plt.plot(thread_counts, malloc_speedup, marker='o', linestyle='-', label='libc malloc')
 plt.plot(thread_counts, hoard_speedup, marker='o', linestyle='--', label='Hoard')
