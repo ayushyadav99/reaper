@@ -247,9 +247,15 @@ void my_free(void *ptr) {
     pthread_mutex_unlock(&lock[block->my_super_block->owner_thread_id]);
 }
 
+/*
+CFLAGS = -Xpreprocessor -fopenmp \
+         -I/opt/homebrew/opt/libomp/include \
+         -L/opt/homebrew/opt/libomp/lib \
+         -lomp -lm -Wall -Iinclude
+*/
 
 int main() {
-    
+    return 0;
 }
 
 
